@@ -299,16 +299,61 @@ if exists('+termguicolors')
 endif
 
 " Try built-in themes in order of preference
+set background=dark
 silent! colorscheme lunaperche
 if !exists('g:colors_name')
     silent! colorscheme elflord
 endif
 
-" Custom status line (replaces lightline)
-set statusline=%F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
+" Custom status line with mode display and color coding
+function! GetMode()
+    let m = mode()
+    if m ==# 'n'
+        return 'NORMAL'
+    elseif m ==# 'i'
+        return 'INSERT'
+    elseif m ==# 'v'
+        return 'VISUAL'
+    elseif m ==# 'V'
+        return 'V-LINE'
+    elseif m ==# nr2char(22)
+        return 'V-BLOCK'
+    elseif m ==# 'c'
+        return 'COMMAND'
+    elseif m ==# 'r'
+        return 'REPLACE'
+    elseif m ==# 'R'
+        return 'REPLACE'
+    elseif m ==# 't'
+        return 'TERMINAL'
+    else
+        return toupper(m)
+    endif
+endfunction
+
+" Mode colors
+function! StatuslineMode()
+    let m = mode()
+    if m ==# 'n'
+        hi User1 ctermbg=2 ctermfg=0 guibg=#4CAF50 guifg=#000000
+    elseif m ==# 'i'
+        hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
+    elseif m ==# 'v' || m ==# 'V' || m ==# nr2char(22)
+        hi User1 ctermbg=5 ctermfg=15 guibg=#9C27B0 guifg=#FFFFFF
+    elseif m ==# 'c'
+        hi User1 ctermbg=3 ctermfg=0 guibg=#FF9800 guifg=#000000
+    elseif m ==# 'r' || m ==# 'R'
+        hi User1 ctermbg=1 ctermfg=15 guibg=#F44336 guifg=#FFFFFF
+    else
+        hi User1 ctermbg=8 ctermfg=15 guibg=#757575 guifg=#FFFFFF
+    endif
+    return '%1*'
+endfunction
+
+set statusline=%{StatuslineMode()}\ %{GetMode()}\ %*\ %F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
 set laststatus=2
 
-" Remove the mode status (statusline shows it)
+" Remove the default mode status (our statusline shows it)
 set noshowmode
 
 " Visual indentation (replaces indentLine plugin)
