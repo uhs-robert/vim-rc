@@ -305,53 +305,81 @@ if !exists('g:colors_name')
     silent! colorscheme elflord
 endif
 
-" Custom status line with mode display and color coding
-function! GetMode()
-    let m = mode()
-    if m ==# 'n'
-        return 'NORMAL'
-    elseif m ==# 'i'
-        return 'INSERT'
-    elseif m ==# 'v'
-        return 'VISUAL'
-    elseif m ==# 'V'
-        return 'V-LINE'
-    elseif m ==# nr2char(22)
-        return 'V-BLOCK'
-    elseif m ==# 'c'
-        return 'COMMAND'
-    elseif m ==# 'r'
-        return 'REPLACE'
-    elseif m ==# 'R'
-        return 'REPLACE'
-    elseif m ==# 't'
-        return 'TERMINAL'
-    else
-        return toupper(m)
-    endif
+" Force status line colors after colorscheme loads
+hi! StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+hi! User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+
+" Optimized status line with autocommand-based mode colors
+" Mode transition functions
+function! s:SetNormalMode()
+    hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
+    let g:current_mode = 'NORMAL'
 endfunction
 
-" Mode colors
-function! StatuslineMode()
-    let m = mode()
-    if m ==# 'n'
-        hi User1 ctermbg=2 ctermfg=0 guibg=#4CAF50 guifg=#000000
-    elseif m ==# 'i'
-        hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
-    elseif m ==# 'v' || m ==# 'V' || m ==# nr2char(22)
-        hi User1 ctermbg=5 ctermfg=15 guibg=#9C27B0 guifg=#FFFFFF
-    elseif m ==# 'c'
-        hi User1 ctermbg=3 ctermfg=0 guibg=#FF9800 guifg=#000000
-    elseif m ==# 'r' || m ==# 'R'
-        hi User1 ctermbg=1 ctermfg=15 guibg=#F44336 guifg=#FFFFFF
-    else
-        hi User1 ctermbg=8 ctermfg=15 guibg=#757575 guifg=#FFFFFF
-    endif
-    return '%1*'
+function! s:SetInsertMode()
+    hi User1 ctermbg=2 ctermfg=0 guibg=#4CAF50 guifg=#000000
+    let g:current_mode = 'INSERT'
 endfunction
 
-set statusline=%{StatuslineMode()}\ %{GetMode()}\ %*\ %F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
+function! s:SetVisualMode()
+    hi User1 ctermbg=3 ctermfg=0 guibg=#FF9800 guifg=#000000
+    let g:current_mode = 'VISUAL'
+endfunction
+
+function! s:SetCommandMode()
+    hi User1 ctermbg=5 ctermfg=15 guibg=#9C27B0 guifg=#FFFFFF
+    let g:current_mode = 'COMMAND'
+endfunction
+
+function! s:SetReplaceMode()
+    hi User1 ctermbg=1 ctermfg=15 guibg=#F44336 guifg=#FFFFFF
+    let g:current_mode = 'REPLACE'
+endfunction
+
+" Initialize mode
+let g:current_mode = 'NORMAL'
+call s:SetNormalMode()
+
+set statusline=%1*\ %{g:current_mode}\ %0*\ %F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
 set laststatus=2
+
+" Fix status line background - set after colorscheme loads
+augroup StatusLineColors
+  autocmd!
+  autocmd ColorScheme * hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+  autocmd ColorScheme * hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+  autocmd VimEnter * hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+  autocmd VimEnter * hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+  autocmd VimEnter * call s:SetNormalMode()
+augroup END
+
+" Mode detection autocommands
+augroup ModeColors
+  autocmd!
+  " Insert mode
+  autocmd InsertEnter * call s:SetInsertMode()
+  autocmd InsertLeave * call s:SetNormalMode()
+  
+  " Visual mode
+  autocmd ModeChanged *:[vV\x16]* call s:SetVisualMode()
+  autocmd ModeChanged [vV\x16]*:* call s:SetNormalMode()
+  
+  " Command mode
+  autocmd CmdlineEnter * call s:SetCommandMode()
+  autocmd CmdlineLeave * call s:SetNormalMode()
+  
+  " Replace mode
+  autocmd ModeChanged *:[rR]* call s:SetReplaceMode()
+  autocmd ModeChanged [rR]*:* call s:SetNormalMode()
+augroup END
+
+" Handle Ctrl-C exit from insert mode (edge case)
+inoremap <c-c> <c-o>:call <SID>SetNormalMode()<cr><c-c>
+
+" Set initial status line colors
+hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
 
 " Remove the default mode status (our statusline shows it)
 set noshowmode
