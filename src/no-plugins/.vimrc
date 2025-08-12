@@ -10,9 +10,8 @@
 "    => Text, tab and indent related
 "    => Moving around, tabs and buffers
 "    => Editing mappings
-"    => Plugin Setup
 "    => Theme and Status Line
-"    => Which Keys
+"    => Leader Key Mappings
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -46,6 +45,7 @@ set mouse=a
 
 " Confirm on exit when closing unsaved file
 set confirm
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => VIM User Interface
@@ -148,6 +148,7 @@ if executable('rg')
   set grepprg=rg\ --vimgrep\ --smart-case\ --hidden
   set grepformat=%f:%l:%c:%m
 endif
+
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Colors and Fonts
@@ -290,201 +291,223 @@ augroup END
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Plugin Setup
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Install vim-plug if not found
-if empty(glob('~/.vim/autoload/plug.vim'))
-  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs
-    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
-endif
-
-" Run PlugInstall if there are missing plugins
-autocmd VimEnter * if len(filter(values(g:plugs), '!isdirectory(v:val.dir)'))
-  \| PlugInstall --sync | source $MYVIMRC
-\| endif
-
-" Plugin List
-call plug#begin()
-    " Status Line
-    Plug 'itchyny/lightline.vim'
-    " Github integration
-    Plug 'tpope/vim-fugitive'
-    " Show github gutter status
-    Plug 'airblade/vim-gitgutter'
-    " Comment/Uncommment selection via gcc
-    Plug 'tpope/vim-commentary'
-    " Nerdtree sidebar
-    Plug 'preservim/nerdtree'
-    " Indent link color
-    Plug 'Yggdroot/indentLine'
-    " Fzf
-    Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
-    Plug 'junegunn/fzf.vim'
-    " Which key
-    Plug 'liuchengxu/vim-which-key'
-    " Syntax Highlighting
-    Plug 'sheerun/vim-polyglot'
-    " Themes
-    Plug 'nelsyeung/high-contrast'
-call plug#end()
-
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " => Theme and Status Line
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Apply theme
-set termguicolors
-silent! colorscheme high_contrast
+" Built-in colorscheme fallbacks
+if exists('+termguicolors')
+    set termguicolors
+endif
 
-" Always show the status line
+" Try built-in themes in order of preference
+silent! colorscheme lunaperche
+if !exists('g:colors_name')
+    silent! colorscheme elflord
+endif
+
+" Custom status line (replaces lightline)
+set statusline=%F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
 set laststatus=2
 
-" Remove the mode status
+" Remove the mode status (statusline shows it)
 set noshowmode
 
-" Lightline config
-let g:lightline = {
-      \ 'colorscheme': 'powerlineish',
-      \ 'active': {
-      \   'left': [ [ 'mode', 'paste' ],
-      \             [ 'gitbranch', 'readonly', 'filename', 'modified' ] ]
-      \ },
-      \ 'component_function': {
-      \   'gitbranch': 'FugitiveHead'
-      \ },
-      \ }
+" Visual indentation (replaces indentLine plugin)
+set list
+set listchars=tab:│\ ,trail:·,extends:>,precedes:<,nbsp:+
 
-" Indent Colors
-let g:indentLine_setColors = 0
-let g:indentLine_char_list = ['|', '¦', '┆', '┊']
+" Enable netrw (built-in file explorer) - replaces NERDTree
+let g:netrw_banner = 0        " Hide banner
+let g:netrw_liststyle = 3     " Tree view
+let g:netrw_browse_split = 4  " Open in previous window
+let g:netrw_altv = 1          " Open splits to the right
+let g:netrw_winsize = 25      " Set width to 25%
+
+" Enhanced file finding
+set path+=**                    " Search down into subfolders
+set wildmenu                    " Display all matching files when tab completing
+set wildignore+=*/node_modules/*,*/dist/*,*/.git/*
+
+" Manual comment toggle (replaces vim-commentary)
+function! ToggleComment()
+    let comment_char = {
+        \ 'vim': '"',
+        \ 'python': '#',
+        \ 'shell': '#',
+        \ 'bash': '#',
+        \ 'javascript': '//',
+        \ 'typescript': '//',
+        \ 'c': '//',
+        \ 'cpp': '//',
+        \ 'java': '//',
+        \ 'php': '//',
+        \ 'ruby': '#',
+        \ 'perl': '#',
+        \ 'sql': '--',
+        \ 'lua': '--',
+        \ 'html': '<!--',
+        \ 'css': '/*'
+    \ }
+    
+    let char = get(comment_char, &filetype, '#')
+    
+    if getline('.') =~ '^\s*' . escape(char, '/*')
+        execute 's/^\(\s*\)' . escape(char, '/*') . '\s*/\1/'
+    else
+        execute 's/^\(\s*\)/\1' . char . ' /'
+    endif
+endfunction
+
+nnoremap gcc :call ToggleComment()<CR>
+vnoremap gc :call ToggleComment()<CR>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Which Keys
+" => Leader Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Leader
-nnoremap <silent> <leader> :WhichKey '<Space>'<CR>
-let g:leader_map = {}
+" Simple help function for leader key mappings
+function! ShowLeaderHelp()
+    echo "Leader Key Mappings (<Space> as leader):"
+    echo "  e          - File explorer (:Explore)"
+    echo "  ?          - Show this help"
+    echo ""
+    echo "  q + key    - Quit operations:"
+    echo "    qq       - Quit all"
+    echo "    qs       - Save and quit"
+    echo "    qo       - Open quickfix"
+    echo "    qc       - Close quickfix"
+    echo ""
+    echo "  w + key    - Window operations:"
+    echo "    ww       - Switch to other window"
+    echo "    wd       - Delete window"
+    echo "    w-       - Split horizontal"
+    echo "    w|       - Split vertical"
+    echo "    wh/j/k/l - Navigate windows"
+    echo "    wH/J/K/L - Resize windows"
+    echo "    w=       - Balance windows"
+    echo ""
+    echo "  t + key    - Tab operations:"
+    echo "    tn       - New tab"
+    echo "    tc       - Close tab"
+    echo "    th/tl    - Previous/next tab"
+    echo "    to       - Close other tabs"
+    echo ""
+    echo "  g + key    - Git operations:"
+    echo "    gs       - Git status"
+    echo "    gd       - Git diff"
+    echo "    gl       - Git log"
+    echo "    gb       - Git branches"
+    echo "    ga       - Git add all"
+    echo "    gc       - Git commit"
+    echo "    gp       - Git push"
+    echo ""
+    echo "  f + key    - File operations:"
+    echo "    ff       - Find file"
+    echo "    fe       - File explorer"
+    echo "    fv       - Vertical explorer"
+    echo ""
+    echo "  s + key    - Search operations:"
+    echo "    sf       - Find file"
+    echo "    sg       - Grep in files"
+    echo "    sb       - List buffers"
+    echo "    sl       - Search lines in buffer"
+    echo "    sv       - Vim grep"
+    echo ""
+    echo "  u + key    - UI toggles:"
+    echo "    us       - Toggle spelling"
+    echo "    uw       - Toggle wrap"
+    echo "    un       - Toggle line numbers"
+    echo "    uh       - Clear highlights"
+    echo "    ul       - Toggle listchars"
+    echo ""
+    echo "  b + key    - Buffer operations:"
+    echo "    bb       - List buffers"
+    echo "    bl/bh    - Next/previous buffer"
+    echo "    bo       - Close other buffers"
+    echo "    bd       - Delete buffer"
+    echo ""
+    echo "  c + key    - Change operations:"
+    echo "    cd       - Change directory to current file"
+endfunction
+
+" Leader key mappings
+nnoremap <silent> <leader> :call ShowLeaderHelp()<CR>
 
 " One-key actions
-let g:leader_map['e'] = [ 'NERDTreeToggle', 'nerdtree' ]
+nnoremap <leader>e :Explore<CR>
 
 " Help
-let g:leader_map['?'] = {
-        \ 'name' : '+help' ,
-        \ 'k' : ['Maps', 'show-keymaps'],
-        \ 'c' : ['Commands', 'show-commands'],
-        \ }
+nnoremap <leader>? :call ShowLeaderHelp()<CR>
 
 " Quit / Quickfix
-let g:leader_map['q'] = {
-        \ 'name' : '+quit' ,
-        \ 'q' : [':qall!', 'quit-all'],
-        \ 'o' : [':copen', 'quickfix-open'],
-        \ 'c' : [':cclose', 'quickfix-close'],
-        \ 's' : [':wq!', 'quit-and-save'],
-        \ }
+nnoremap <leader>qq :qall!<CR>
+nnoremap <leader>qo :copen<CR>
+nnoremap <leader>qc :cclose<CR>
+nnoremap <leader>qs :wq!<CR>
 
 " Windows
-let g:leader_map['w'] = {
-        \ 'name' : '+windows' ,
-        \ 'w' : ['<C-W>w', 'other-window'],
-        \ 'd' : ['<C-W>c', 'delete-window'],
-        \ '-' : ['<C-W>s', 'split-window-below'],
-        \ '|' : ['<C-W>v', 'split-window-right'],
-        \ '2' : ['<C-W>v', 'layout-double-columns'] ,
-        \ 'h' : ['<C-W>h', 'window-left'],
-        \ 'j' : ['<C-W>j', 'window-below'],
-        \ 'l' : ['<C-W>l', 'window-right'],
-        \ 'k' : ['<C-W>k', 'window-up'],
-        \ 'H' : ['<C-W>5<', 'expand-window-left'],
-        \ 'J' : [':resize +5', 'expand-window-below'],
-        \ 'L' : ['<C-W>5>', 'expand-window-right'],
-        \ 'K' : [':resize -5', 'expand-window-up'],
-        \ '=' : ['<C-W>=', 'balance-window'],
-        \ 's' : ['<C-W>s', 'split-window-below'],
-        \ 'v' : ['<C-W>v', 'split-window-below'],
-        \ '/' : ['Windows', 'fzf-window'],
-    \ }
+nnoremap <leader>ww <C-W>w
+nnoremap <leader>wd <C-W>c
+nnoremap <leader>w- <C-W>s
+nnoremap <leader>w<Bar> <C-W>v
+nnoremap <leader>w2 <C-W>v
+nnoremap <leader>wh <C-W>h
+nnoremap <leader>wj <C-W>j
+nnoremap <leader>wl <C-W>l
+nnoremap <leader>wk <C-W>k
+nnoremap <leader>wH <C-W>5<
+nnoremap <leader>wJ :resize +5<CR>
+nnoremap <leader>wL <C-W>5>
+nnoremap <leader>wK :resize -5<CR>
+nnoremap <leader>w= <C-W>=
+nnoremap <leader>ws <C-W>s
+nnoremap <leader>wv <C-W>v
 
 " Tabs
-let g:leader_map['t'] = {
-        \ 'name' : '+tabs',
-        \ 'n' : [':tabnew', 'new-tab'],
-        \ 'o' : [':tabonly', 'close-other-tabs'],
-        \ 'c' : [':tabclose', 'close-tab'],
-        \ 'h' : [':tabprevious', 'previous-tab'],
-        \ 'l' : [':tabnext', 'next-tab'],
-        \ 'z' : [':tablast', 'last-tab'],
-    \ }
+nnoremap <leader>tn :tabnew<CR>
+nnoremap <leader>to :tabonly<CR>
+nnoremap <leader>tc :tabclose<CR>
+nnoremap <leader>th :tabprevious<CR>
+nnoremap <leader>tl :tabnext<CR>
+nnoremap <leader>tz :tablast<CR>
 
-" Git
-let g:leader_map['g'] = {
-        \ 'name' : '+git',
-        \ 'b' : ['Gblame', 'fugitive-blame'],
-        \ 'c' : ['BCommits', 'commits-for-current-buffer'],
-        \ 'C' : ['Gcommit', 'fugitive-commit'],
-        \ 'd' : ['Gdiff', 'fugitive-diff'],
-        \ 'e' : ['Gedit', 'fugitive-edit'],
-        \ 'l' : ['Glog', 'fugitive-log'],
-        \ 'r' : ['Gread', 'fugitive-read'],
-        \ 's' : ['Gstatus', 'fugitive-status'],
-        \ 'w' : ['Gwrite', 'fugitive-write'],
-        \ 'p' : ['Git push', 'fugitive-push'],
-        \ '/' : ['GFiles', 'find-gitfile'],
-    \ }
+" Git (shell-based commands)
+nnoremap <leader>gs :!git status<CR>
+nnoremap <leader>gd :!git diff<CR>
+nnoremap <leader>gl :!git log --oneline -10<CR>
+nnoremap <leader>gb :!git branch -a<CR>
+nnoremap <leader>gp :!git push<CR>
+nnoremap <leader>gc :!git commit<CR>
+nnoremap <leader>ga :!git add .<CR>
 
 " Files
-let g:leader_map['f'] = {
-        \ 'name' : '+files' ,
-        \ 'b' : ['Gblame', 'fugitive-blame'],
-        \ '/' : ['Files', 'fzf-files'],
-    \ }
+nnoremap <leader>ff :find 
+nnoremap <leader>fe :Explore<CR>
+nnoremap <leader>fv :Vexplore<CR>
 
 " Search
-let g:leader_map['s'] = {
-        \ 'name' : '+search',
-        \ 'f' : ['Files', 'find-file'],
-        \ 'g' : ['GFiles', 'find-gitfile'],
-        \ 'b' : ['Buffers', 'find-buffer'],
-        \ 'l' : ['BLines', 'find-in-buffer'],
-        \ 'L' : ['Lines', 'find-in-all-buffers'],
-        \ 'c' : ['Changes', 'changes-made'],
-        \ 's' : ['Rg', 'rip-grep'],
-        \ 'S' : ['RG', 'rip-grep-sensitive'],
-    \ }
+nnoremap <leader>sf :find 
+nnoremap <leader>sg :vimgrep // **/*<Left><Left><Left><Left><Left><Left>
+nnoremap <leader>sb :ls<CR>
+nnoremap <leader>sl :g//<Left>
+nnoremap <leader>sv :vimgrep 
 
 " User Interface Settings
-let g:leader_map['u'] = {
-        \ 'name' : '+ui',
-        \ 'c' : ['Colors', 'set-colorscheme'],
-        \ 's' : [':setlocal spell!', 'toggle-spelling'],
-        \ 'w' : [':setlocal wrap!', 'toggle-wrap'],
-        \ 'n' : [':setlocal number!', 'toggle-relative-number'],
-        \ 'h' : [':noh', 'stop-highlight'],
-    \ }
+nnoremap <leader>us :setlocal spell!<CR>
+nnoremap <leader>uw :setlocal wrap!<CR>
+nnoremap <leader>un :setlocal number!<CR>
+nnoremap <leader>uh :noh<CR>
+nnoremap <leader>ul :setlocal list!<CR>
 
 " Buffers
-let g:leader_map['b'] = {
-        \ 'name' : '+buffers',
-        \ '/' : ['Buffers', 'search-buffers'],
-        \ 'l' : ['bnext', 'next-buffer'],
-        \ 'h' : ['bprevious', 'previous-buffer'],
-        \ 'o' : [':%bd\|e#', 'close-other-buffers'],
-    \ }
-
+nnoremap <leader>bb :ls<CR>
+nnoremap <leader>bl :bnext<CR>
+nnoremap <leader>bh :bprevious<CR>
+nnoremap <leader>bo :%bd<Bar>e#<CR>
+nnoremap <leader>bd :bd<CR>
 
 " Change commands
-let g:leader_map['c'] = {
-        \ 'name' : '+change',
-        \ 'd' : [':cd %:p:h<cr>:pwd<', 'change-directory'],
-    \ }
+nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
 
-call which_key#register('<Space>', "g:leader_map")
-
-" Nerd Tree
-nnoremap <C-e> :NERDTreeToggle<CR>
-nnoremap <C-f> :NERDTreeFind<CR>
-
-" FZF
-let g:fzf_vim = {}
+" File Explorer (replaces NERDTree)
+nnoremap <C-e> :Explore<CR>
+nnoremap <C-f> :find 
