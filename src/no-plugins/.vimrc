@@ -3,21 +3,24 @@
 "       Robert Hill - @uhs-robert
 "
 " Sections:
-"    => General
-"    => VIM User Interface
-"    => Colors and Fonts
-"    => Files and backups
-"    => Text, tab and indent related
-"    => Moving around, tabs and buffers
-"    => Editing mappings
-"    => Theme and Status Line
-"    => Leader Key Mappings
+"    ## General
+"    ## VIM User Interface
+"    ## Colors and Fonts
+"    ## Files and backups
+"    ## Text, tab and indent related
+"    ## Moving around, tabs and buffers
+"    ## Custom Key Mappings
+"    ## Theme and Status Line
+"    ## Plugin Replacements
+"    ### Netrw (Explorer)
+"    ### Toggle Comments
+"    ## Leader Key Mappings
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => General
+" ## General
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Sets how many lines of history VIM has to remember
 set history=500
@@ -48,7 +51,7 @@ set confirm
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => VIM User Interface
+" ## VIM User Interface
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 set nocompatible
 
@@ -142,24 +145,19 @@ set updatetime=300
 
 " Better quickfix grep (works with :grep)
 if executable('rg')
-  set grepprg=rg\ --vimgrep\ --smart-case\ --hidden
-  set grepformat=%f:%l:%c:%m
+    set grepprg=rg\ --vimgrep\ --smart-case\ --hidden
+    set grepformat=%f:%l:%c:%m
 endif
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Colors and Fonts
+" ## Colors and Fonts
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable syntax highlighting
 syntax enable
 
 " Set regular expression engine automatically
 set regexpengine=0
-
-" " Enable 256 colors palette in Gnome Terminal
-" if $COLORTERM == 'gnome-terminal'
-"     set t_Co=256
-" endif
 
 " Set extra options when running in GUI mode
 if has("gui_running")
@@ -177,7 +175,7 @@ set ffs=unix,dos,mac
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Files, backups and undo
+" ## Files, backups and undo
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Turn backup off
 set nobackup
@@ -186,7 +184,7 @@ set noswapfile
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Text, tab and indent related
+" ## Text, tab and indent related
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Use spaces instead of tabs
 set expandtab
@@ -194,9 +192,9 @@ set expandtab
 " Insert 'tabstop' number of spaces when the 'tab' key is pressed.
 set smarttab
 
-" 1 tab == 4 spaces
-set shiftwidth=4
-set tabstop=4
+" 1 tab == n spaces
+set shiftwidth=2
+set tabstop=2
 
 " Linebreak on x characters
 set lbr
@@ -206,7 +204,7 @@ set si "Smart indent
 set wrap "Wrap lines
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Moving around, tabs, windows and buffers
+" ## Moving around, tabs, windows and buffers
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Smart way to move between windows
 nnoremap <C-h> <C-w>h
@@ -227,11 +225,11 @@ xnoremap p "_dP
 
 " System clipboard (only if available)
 if has('clipboard')
-  nnoremap <leader>y "+y
-  vnoremap <leader>y "+y
-  nnoremap <leader>Y "+Y
-  nnoremap <leader>p "+p
-  nnoremap <leader>P "+P
+    nnoremap <leader>y "+y
+    vnoremap <leader>y "+y
+    nnoremap <leader>Y "+Y
+    nnoremap <leader>p "+p
+    nnoremap <leader>P "+P
 endif
 
 " Let 'tl' toggle between this and the last accessed tab
@@ -240,8 +238,8 @@ au TabLeave * let g:lasttab = tabpagenr()
 
 " Specify the behavior when switching between buffers
 try
-  set switchbuf=useopen,usetab,newtab
-  set showtabline=2
+    set switchbuf=useopen,usetab,newtab
+    set showtabline=2
 catch
 endtry
 
@@ -249,7 +247,7 @@ endtry
 au BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Editing mappings
+" ## Custom Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Remap H to first non-blank character
 nnoremap H ^
@@ -271,24 +269,24 @@ xnoremap <A-k> :m '<-2<CR>gv=gv
 
 " --- Trim trailing whitespace on save (safe, opt-out capable)
 function! s:TrimWhitespace() abort
-  " allow b:keep_trailing_whitespace = 1 to skip
-  if get(b:, 'keep_trailing_whitespace', 0)
+    " allow b:keep_trailing_whitespace = 1 to skip
+    if get(b:, 'keep_trailing_whitespace', 0)
     return
-  endif
-  let l:save = winsaveview()
-  silent! keepjumps keeppatterns %s/\s\+$//e
-  call winrestview(l:save)
+    endif
+    let l:save = winsaveview()
+    silent! keepjumps keeppatterns %s/\s\+$//e
+    call winrestview(l:save)
 endfunction
 
 augroup TrimWhitespace
-  autocmd!
-  " Exclude filetypes where trailing spaces can be meaningful (e.g. markdown line breaks)
-  autocmd BufWritePre * if &filetype !~# '^\%(markdown\|md\|rst\|help\)$' | call <SID>TrimWhitespace() | endif
+    autocmd!
+    " Exclude filetypes where trailing spaces can be meaningful (e.g. markdown line breaks)
+    autocmd BufWritePre * if &filetype !~# '^\%(markdown\|md\|rst\|help\)$' | call <SID>TrimWhitespace() | endif
 augroup END
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Theme and Status Line
+" ## Theme and Status Line
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Built-in colorscheme fallbacks
 if exists('+termguicolors')
@@ -304,13 +302,13 @@ endif
 
 " Git branch info
 function! GitBranch()
-  return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
+    return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
 endfunction
 
 " Parse git branch info for status line
 function! StatuslineGit()
-  let l:branchname = GitBranch()
-  return strlen(l:branchname) > 0?'  '.l:branchname.' ':''
+    let l:branchname = GitBranch()
+    return strlen(l:branchname) > 0?'  '.l:branchname.' ':''
 endfunction
 
 " Optimized status line with autocommand-based mode colors
@@ -357,10 +355,10 @@ set statusline+=%4*\ %3p%%\ %02l/%L\                     " Percentage of Doc, Li
 set statusline+=%0*\ %n\                                 " Buffer number
 
 " Static highlight group colors
-hi User1 ctermbg=15 ctermfg=0 guibg=#3E3C3B guifg=#FFFFFF
-hi User2 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#FFFFFF
-hi User3 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#303030
-hi User5 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#F581F3
+hi User1 ctermbg=15 ctermfg=0 guibg=#303030 guifg=#FFFFFF
+hi User2 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#FFFFFF
+hi User3 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#252426
+hi User5 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#F581F3
 
 " Mode-based statusline color changes
 augroup StatusLineModeColors
@@ -369,26 +367,26 @@ augroup StatusLineModeColors
 
     " Get mode
     function! s:BucketForMode(m) abort
-      let m = a:m
-      " Insert modes: i, ic, ix
-      if m[0] ==# 'i'
-        return 'insert'
-      " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
-      elseif m[0] ==# 'R'
-        return 'replace'
-      " Visual & Select: v, V, ^V, s, S, ^S
-      elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
-        return 'visual'
-      " Terminal
-      elseif m ==# 't'
-        return 'terminal'
-      " Command-line & prompts: c, cv, ce, r, rm, r?, !
-      elseif m[0] =~# '^\%(c\|r\|!\)'
-        return 'cmdline'
-      " Normal and operator-pending fall here
-      else
-        return 'normal'
-      endif
+        let m = a:m
+        " Insert modes: i, ic, ix
+        if m[0] ==# 'i'
+            return 'insert'
+            " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
+        elseif m[0] ==# 'R'
+            return 'replace'
+            " Visual & Select: v, V, ^V, s, S, ^S
+        elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
+            return 'visual'
+            " Terminal
+        elseif m ==# 't'
+            return 'terminal'
+            " Command-line & prompts: c, cv, ce, r, rm, r?, !
+        elseif m[0] =~# '^\%(c\|r\|!\)'
+            return 'cmdline'
+            " Normal and operator-pending fall here
+        else
+            return 'normal'
+        endif
     endfunction
 
     " Apply mode colors
@@ -424,43 +422,97 @@ augroup StatusLineModeColors
       let s:last_bucket = a:bucket
     endfunction
 
-  " Prep before entering cmdline so colors flip immediately
-  function! s:CmdlinePrep(ch) abort
+    " Prep before entering cmdline so colors flip immediately
+    function! s:CmdlinePrep(ch) abort
     call <SID>ApplyModeColor('cmdline')
     silent! redrawstatus!
     return a:ch
-  endfunction
+    endfunction
 
-  " Instant flip on :, /, ?
-  nnoremap <expr> : <SID>CmdlinePrep(':')
-  nnoremap <expr> / <SID>CmdlinePrep('/')
-  nnoremap <expr> ? <SID>CmdlinePrep('?')
+    " Instant flip on :, /, ?
+    nnoremap <expr> : <SID>CmdlinePrep(':')
+    nnoremap <expr> / <SID>CmdlinePrep('/')
+    nnoremap <expr> ? <SID>CmdlinePrep('?')
 
     " Use <SID> to call script-local functions from autocommands
     autocmd ModeChanged *:* call <SID>ApplyModeColor(<SID>BucketForMode(get(v:event,'new_mode',mode(1))))
     autocmd VimEnter *  call <SID>ApplyModeColor(<SID>BucketForMode(mode(1)))
 augroup END
 
+" Tab color scheme
+set showtabline=2
+highlight TabLine     guifg=#ffffff guibg=#252426 ctermfg=15 ctermbg=235
+highlight TabLineSel  guifg=#000000 guibg=#FFD54F ctermfg=0  ctermbg=221
+highlight TabLineFill  guifg=NONE guibg=#252426 ctermfg=NONE  ctermbg=235
+augroup TablinePreserve
+  autocmd!
+  autocmd ColorScheme * highlight TabLine     guifg=#ffffff guibg=#252426 ctermfg=15 ctermbg=235
+  autocmd ColorScheme * highlight TabLineSel  guifg=#000000 guibg=#FFD54F ctermfg=0  ctermbg=221
+  autocmd ColorScheme * highlight TabLineFill guifg=NONE    guibg=#252426 ctermfg=NONE ctermbg=235
+augroup END
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Plugin Replacements
+" ## Plugin Replacements
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" TODO: Fix this
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ### Visual Indentation
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Visual indentation (replaces indentLine plugin)
 set list
 set listchars=tab:│\ ,trail:·,extends:>,precedes:<,nbsp:+
 
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ### Netrw (Explorer)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable netrw (built-in file explorer) - replaces NERDTree
-let g:netrw_banner = 0        " Hide banner
-let g:netrw_liststyle = 3     " Tree view
-let g:netrw_browse_split = 4  " Open in previous window
-let g:netrw_altv = 1          " Open splits to the right
-let g:netrw_winsize = 25      " Set width to 25%
+let g:netrw_banner = 0        " 0=hide banner, 1=show (default: 1)
+let g:netrw_liststyle = 3     " 0=thin, 1=long, 2=wide, 3=tree (default: 0)
+let g:netrw_browse_split = 3  " 0=same win, 1=hsplit, 2=vsplit, 3=tab, 4=prev win (default: 0)
+let g:netrw_altv = 1          " 0=vertical split left, 1=right (default: 0)
+let g:netrw_winsize = 33      " 0=use 'equalalways', 1–99=split size percent (~33%)
+
+" Key mapping for netrw
+function! NetrwMapping()
+    " Go back in history
+    nmap <buffer> H u
+    " Go up a dir
+    nmap <buffer> h -^
+    " Open dir or file
+    nmap <buffer> l <CR>
+    " Toggle dot files
+    nmap <buffer> . gh
+    " Close preview
+    nmap <buffer> P <C-w>z
+    " Open file then close
+    nmap <buffer> L <CR>:Lexplore<CR>
+    " Mark file
+    nmap <buffer> <TAB> mf
+    " Unmark file
+    nmap <buffer> <S-TAB> mF
+    " Unmark all files
+    nmap <buffer> <Leader><TAB> mu
+    " Close
+    nmap <buffer> q :Lexplore<CR>
+endfunction
+
+" Apply keymapping
+augroup netrw_mapping
+  autocmd!
+  autocmd filetype netrw call NetrwMapping()
+augroup END
 
 " Enhanced file finding
 set path+=**                    " Search down into subfolders
 set wildmenu                    " Display all matching files when tab completing
 set wildignore+=*/node_modules/*,*/dist/*,*/.git/*
 
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ### Toggle Comments
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Manual comment toggle (replaces vim-commentary)
 function! ToggleComment()
     let comment_char = {
@@ -496,7 +548,7 @@ vnoremap gc :call ToggleComment()<CR>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" => Leader Key Mappings
+" ## Leader Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Simple help function for leader key mappings
 function! ShowLeaderHelp()
@@ -567,7 +619,7 @@ endfunction
 nnoremap <silent> <leader> :call ShowLeaderHelp()<CR>
 
 " One-key actions
-nnoremap <leader>e :Explore<CR>
+nnoremap <leader>e :Lexplore<CR>
 
 " Help
 nnoremap <leader>? :call ShowLeaderHelp()<CR>
@@ -616,7 +668,7 @@ nnoremap <leader>ga :!git add .<CR>
 " Files
 nnoremap <leader>ff :find
 nnoremap <leader>fe :Explore<CR>
-nnoremap <leader>fv :Vexplore<CR>
+nnoremap <leader>fv :Lexplore<CR>
 
 " Search
 nnoremap <leader>sf :find
@@ -643,6 +695,6 @@ nnoremap <leader>bd :bd<CR>
 nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
 
 " File Explorer (replaces NERDTree)
-nnoremap <C-e> :Explore<CR>
+nnoremap <C-e> :Lexplore<CR>
 nnoremap <C-f> :find
 
