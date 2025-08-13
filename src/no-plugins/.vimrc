@@ -79,9 +79,9 @@ set wildmenu
 " Ignore compiled files
 set wildignore=*.o,*~,*.pyc
 if has("win16") || has("win32")
-    set wildignore+=.git\*,.hg\*,.svn\*
+  set wildignore+=.git\*,.hg\*,.svn\*
 else
-    set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.DS_Store
+  set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.DS_Store
 endif
 
 " Ignore modern dev files
@@ -145,8 +145,8 @@ set updatetime=300
 
 " Better quickfix grep (works with :grep)
 if executable('rg')
-    set grepprg=rg\ --vimgrep\ --smart-case\ --hidden
-    set grepformat=%f:%l:%c:%m
+  set grepprg=rg\ --vimgrep\ --smart-case\ --hidden
+  set grepformat=%f:%l:%c:%m
 endif
 
 
@@ -161,10 +161,10 @@ set regexpengine=0
 
 " Set extra options when running in GUI mode
 if has("gui_running")
-    set guioptions-=T
-    set guioptions-=e
-    " set t_Co=256
-    set guitablabel=%M\ %t
+  set guioptions-=T
+  set guioptions-=e
+  " set t_Co=256
+  set guitablabel=%M\ %t
 endif
 
 " Set utf8 as standard encoding and en_US as the standard language
@@ -225,11 +225,11 @@ xnoremap p "_dP
 
 " System clipboard (only if available)
 if has('clipboard')
-    nnoremap <leader>y "+y
-    vnoremap <leader>y "+y
-    nnoremap <leader>Y "+Y
-    nnoremap <leader>p "+p
-    nnoremap <leader>P "+P
+  nnoremap <leader>y "+y
+  vnoremap <leader>y "+y
+  nnoremap <leader>Y "+Y
+  nnoremap <leader>p "+p
+  nnoremap <leader>P "+P
 endif
 
 " Let 'tl' toggle between this and the last accessed tab
@@ -238,8 +238,8 @@ au TabLeave * let g:lasttab = tabpagenr()
 
 " Specify the behavior when switching between buffers
 try
-    set switchbuf=useopen,usetab,newtab
-    set showtabline=2
+  set switchbuf=useopen,usetab,newtab
+  set showtabline=2
 catch
 endtry
 
@@ -269,19 +269,19 @@ xnoremap <A-k> :m '<-2<CR>gv=gv
 
 " --- Trim trailing whitespace on save (safe, opt-out capable)
 function! s:TrimWhitespace() abort
-    " allow b:keep_trailing_whitespace = 1 to skip
-    if get(b:, 'keep_trailing_whitespace', 0)
-    return
-    endif
-    let l:save = winsaveview()
-    silent! keepjumps keeppatterns %s/\s\+$//e
-    call winrestview(l:save)
+  " allow b:keep_trailing_whitespace = 1 to skip
+  if get(b:, 'keep_trailing_whitespace', 0)
+  return
+  endif
+  let l:save = winsaveview()
+  silent! keepjumps keeppatterns %s/\s\+$//e
+  call winrestview(l:save)
 endfunction
 
 augroup TrimWhitespace
-    autocmd!
-    " Exclude filetypes where trailing spaces can be meaningful (e.g. markdown line breaks)
-    autocmd BufWritePre * if &filetype !~# '^\%(markdown\|md\|rst\|help\)$' | call <SID>TrimWhitespace() | endif
+  autocmd!
+  " Exclude filetypes where trailing spaces can be meaningful (e.g. markdown line breaks)
+  autocmd BufWritePre * if &filetype !~# '^\%(markdown\|md\|rst\|help\)$' | call <SID>TrimWhitespace() | endif
 augroup END
 
 
@@ -290,50 +290,50 @@ augroup END
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Built-in colorscheme fallbacks
 if exists('+termguicolors')
-    set termguicolors
+  set termguicolors
 endif
 
 " Try built-in themes in order of preference
 set background=dark
 silent! colorscheme lunaperche
 if !exists('g:colors_name')
-    silent! colorscheme elflord
+  silent! colorscheme elflord
 endif
 
 " Git branch info
 function! GitBranch()
-    return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
+  return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
 endfunction
 
 " Parse git branch info for status line
 function! StatuslineGit()
-    let l:branchname = GitBranch()
-    return strlen(l:branchname) > 0?'  '.l:branchname.' ':''
+  let l:branchname = GitBranch()
+  return strlen(l:branchname) > 0?'  '.l:branchname.' ':''
 endfunction
 
 " Optimized status line with autocommand-based mode colors
 " Mode dictionary
 let g:currentmode={
-    \ 'n'  : 'NORMAL',
-    \ 'no' : 'NORMAL',
-    \ 'v'  : 'VISUAL',
-    \ 'V'  : 'V-LINE',
-    \ "\<C-V>" : 'V-BLOCK',
-    \ 's'  : 'SELECT',
-    \ 'S'  : 'S-LINE',
-    \ "\<C-S>" : 'S-BLOCK',
-    \ 'i'  : 'INSERT',
-    \ 'R'  : 'REPLACE',
-    \ 'Rv' : 'V-REPLACE',
-    \ 'c'  : 'COMMAND',
-    \ 'cv' : 'VIM-EX',
-    \ 'ce' : 'EX',
-    \ 'r'  : 'PROMPT',
-    \ 'rm' : 'MORE',
-    \ 'r?' : 'CONFIRM',
-    \ '!'  : 'SHELL',
-    \ 't'  : 'TERMINAL'
-    \}
+  \ 'n'  : 'NORMAL',
+  \ 'no' : 'NORMAL',
+  \ 'v'  : 'VISUAL',
+  \ 'V'  : 'V-LINE',
+  \ "\<C-V>" : 'V-BLOCK',
+  \ 's'  : 'SELECT',
+  \ 'S'  : 'S-LINE',
+  \ "\<C-S>" : 'S-BLOCK',
+  \ 'i'  : 'INSERT',
+  \ 'R'  : 'REPLACE',
+  \ 'Rv' : 'V-REPLACE',
+  \ 'c'  : 'COMMAND',
+  \ 'cv' : 'VIM-EX',
+  \ 'ce' : 'EX',
+  \ 'r'  : 'PROMPT',
+  \ 'rm' : 'MORE',
+  \ 'r?' : 'CONFIRM',
+  \ '!'  : 'SHELL',
+  \ 't'  : 'TERMINAL'
+  \}
 
 " Modular statusline construction
 set laststatus=2
@@ -362,31 +362,31 @@ hi User5 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#F581F3
 
 " Mode-based statusline color changes
 augroup StatusLineModeColors
-    autocmd!
+  autocmd!
     let s:last_bucket = ''
 
     " Get mode
     function! s:BucketForMode(m) abort
-        let m = a:m
-        " Insert modes: i, ic, ix
-        if m[0] ==# 'i'
-            return 'insert'
-            " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
-        elseif m[0] ==# 'R'
-            return 'replace'
-            " Visual & Select: v, V, ^V, s, S, ^S
-        elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
-            return 'visual'
-            " Terminal
-        elseif m ==# 't'
-            return 'terminal'
-            " Command-line & prompts: c, cv, ce, r, rm, r?, !
-        elseif m[0] =~# '^\%(c\|r\|!\)'
-            return 'cmdline'
-            " Normal and operator-pending fall here
-        else
-            return 'normal'
-        endif
+      let m = a:m
+      " Insert modes: i, ic, ix
+      if m[0] ==# 'i'
+        return 'insert'
+        " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
+      elseif m[0] ==# 'R'
+        return 'replace'
+        " Visual & Select: v, V, ^V, s, S, ^S
+      elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
+        return 'visual'
+        " Terminal
+      elseif m ==# 't'
+        return 'terminal'
+        " Command-line & prompts: c, cv, ce, r, rm, r?, !
+      elseif m[0] =~# '^\%(c\|r\|!\)'
+        return 'cmdline'
+        " Normal and operator-pending fall here
+      else
+        return 'normal'
+      endif
     endfunction
 
     " Apply mode colors
@@ -455,13 +455,100 @@ augroup END
 " ## Plugin Replacements
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" TODO: Fix this
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" ### Visual Indentation
+" ### Visual Indent Guides
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Visual indentation (replaces indentLine plugin)
+" Visual indentation for space-indented files + hide $ at EOL
 set list
-set listchars=tab:│\ ,trail:·,extends:>,precedes:<,nbsp:+
+
+function! SetIndentGuides() abort
+  let sw = (&shiftwidth > 0 ? &shiftwidth : &tabstop)
+  let bar = '│'                         " use '\|' if you prefer ASCII
+  let lead = bar . repeat('\ ', max([sw - 1, 0]))
+  let lcs = 'tab:' . bar . '\ ' .
+        \ ',trail:·,extends:>,precedes:<,nbsp:+,eol:\ ' .
+        \ ',leadmultispace:' . lead
+  try
+    execute 'set listchars=' . lcs
+  catch /^Vim\%((\a\+)\)\=:E/
+    " fallback if leadmultispace isn't supported
+    execute 'set listchars=tab:' . bar . '\ ,trail:·,extends:>,precedes:<,nbsp:+,eol:\ ,lead:·'
+  endtry
+endfunction
+
+augroup IndentGuides
+  autocmd!
+  autocmd VimEnter,ColorScheme * call SetIndentGuides()
+  autocmd OptionSet shiftwidth call SetIndentGuides()
+  autocmd OptionSet tabstop    call SetIndentGuides()
+augroup END
+
+" --- Colors ---
+highlight IndentGuides     guifg=#555555 ctermfg=240
+highlight IndentActive     guifg=#08436C ctermfg=220
+highlight! link SpecialKey  IndentGuides
+highlight! link Whitespace  IndentGuides
+highlight! link NonText     IndentGuides
+
+augroup IndentGuideColors
+  autocmd!
+  autocmd ColorScheme * highlight IndentGuides guifg=#555555 ctermfg=240
+  autocmd ColorScheme * highlight IndentActive guifg=#ffcc00 ctermfg=220
+  autocmd ColorScheme * highlight! link SpecialKey  IndentGuides
+  autocmd ColorScheme * highlight! link Whitespace  IndentGuides
+  autocmd ColorScheme * highlight! link NonText     IndentGuides
+augroup END
+
+" --- Active indent (block-bounded) ---
+function! s:ActiveIndentUpdate() abort
+  let sw = (&shiftwidth > 0 ? &shiftwidth : &tabstop)
+  if sw <= 0
+    if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | unlet w:activeindent_id | endif
+    setlocal colorcolumn=
+    return
+  endif
+
+  let lnum = line('.')
+  let ind  = indent(lnum)
+
+  " No indent on current line → clear and bail
+  if ind <= 0
+    if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | unlet w:activeindent_id | endif
+    setlocal colorcolumn=
+    return
+  endif
+
+  " Active guide column for this indent level (1, 1+sw, 1+2*sw, ...)
+  let level = (ind - 1) / sw
+  let col   = level * sw + 1
+
+  " Contiguous block [top..bot] where indent >= col OR the line is blank
+  let top = lnum
+  while top > 1 && (indent(top - 1) >= col || getline(top - 1) =~# '^\s*$')
+    let top -= 1
+  endwhile
+  let bot = lnum
+  let last = line('$')
+  while bot < last && (indent(bot + 1) >= col || getline(bot + 1) =~# '^\s*$')
+    let bot += 1
+  endwhile
+
+  " Highlight the leading SPACE at that column inside the block
+  let pat = '\%>' . (top - 1) . 'l\%<' . (bot + 1) . 'l^ \{' . (col - 1) . '}\zs '
+  if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | endif
+  let w:activeindent_id = matchadd('IndentActive', pat, 100)
+
+  " Fill gaps on blank lines with a faint column background
+  execute 'setlocal colorcolumn=' . col
+endfunction
+
+augroup ActiveIndent
+  autocmd!
+  autocmd VimEnter,WinEnter,BufWinEnter * call <SID>ActiveIndentUpdate()
+  autocmd CursorMoved,CursorMovedI      * call <SID>ActiveIndentUpdate()
+  autocmd OptionSet shiftwidth          * call <SID>ActiveIndentUpdate()
+  autocmd OptionSet tabstop             * call <SID>ActiveIndentUpdate()
+augroup END
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -476,26 +563,26 @@ let g:netrw_winsize = 33      " 0=use 'equalalways', 1–99=split size percent (
 
 " Key mapping for netrw
 function! NetrwMapping()
-    " Go back in history
-    nmap <buffer> H u
-    " Go up a dir
-    nmap <buffer> h -^
-    " Open dir or file
-    nmap <buffer> l <CR>
-    " Toggle dot files
-    nmap <buffer> . gh
-    " Close preview
-    nmap <buffer> P <C-w>z
-    " Open file then close
-    nmap <buffer> L <CR>:Lexplore<CR>
-    " Mark file
-    nmap <buffer> <TAB> mf
-    " Unmark file
-    nmap <buffer> <S-TAB> mF
-    " Unmark all files
-    nmap <buffer> <Leader><TAB> mu
-    " Close
-    nmap <buffer> q :Lexplore<CR>
+  " Go back in history
+  nmap <buffer> H u
+  " Go up a dir
+  nmap <buffer> h -^
+  " Open dir or file
+  nmap <buffer> l <CR>
+  " Toggle dot files
+  nmap <buffer> . gh
+  " Close preview
+  nmap <buffer> P <C-w>z
+  " Open file then close
+  nmap <buffer> L <CR>:Lexplore<CR>
+  " Mark file
+  nmap <buffer> <TAB> mf
+  " Unmark file
+  nmap <buffer> <S-TAB> mF
+  " Unmark all files
+  nmap <buffer> <Leader><TAB> mu
+  " Close
+  nmap <buffer> q :Lexplore<CR>
 endfunction
 
 " Apply keymapping
@@ -515,32 +602,32 @@ set wildignore+=*/node_modules/*,*/dist/*,*/.git/*
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Manual comment toggle (replaces vim-commentary)
 function! ToggleComment()
-    let comment_char = {
-        \ 'vim': '"',
-        \ 'python': '#',
-        \ 'shell': '#',
-        \ 'bash': '#',
-        \ 'javascript': '//',
-        \ 'typescript': '//',
-        \ 'c': '//',
-        \ 'cpp': '//',
-        \ 'java': '//',
-        \ 'php': '//',
-        \ 'ruby': '#',
-        \ 'perl': '#',
-        \ 'sql': '--',
-        \ 'lua': '--',
-        \ 'html': '<!--',
-        \ 'css': '/*'
-    \ }
+  let comment_char = {
+    \ 'vim': '"',
+    \ 'python': '#',
+    \ 'shell': '#',
+    \ 'bash': '#',
+    \ 'javascript': '//',
+    \ 'typescript': '//',
+    \ 'c': '//',
+    \ 'cpp': '//',
+    \ 'java': '//',
+    \ 'php': '//',
+    \ 'ruby': '#',
+    \ 'perl': '#',
+    \ 'sql': '--',
+    \ 'lua': '--',
+    \ 'html': '<!--',
+    \ 'css': '/*'
+  \ }
 
-    let char = get(comment_char, &filetype, '#')
+  let char = get(comment_char, &filetype, '#')
 
-    if getline('.') =~ '^\s*' . escape(char, '/*')
-        execute 's/^\(\s*\)' . escape(char, '/*') . '\s*/\1/'
-    else
-        execute 's/^\(\s*\)/\1' . char . ' /'
-    endif
+  if getline('.') =~ '^\s*' . escape(char, '/*')
+    execute 's/^\(\s*\)' . escape(char, '/*') . '\s*/\1/'
+  else
+    execute 's/^\(\s*\)/\1' . char . ' /'
+  endif
 endfunction
 
 nnoremap gcc :call ToggleComment()<CR>
@@ -552,67 +639,67 @@ vnoremap gc :call ToggleComment()<CR>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Simple help function for leader key mappings
 function! ShowLeaderHelp()
-    echo "Leader Key Mappings (<Space> as leader):"
-    echo "  e          - File explorer (:Explore)"
-    echo "  ?          - Show this help"
-    echo ""
-    echo "  q + key    - Quit operations:"
-    echo "    qq       - Quit all"
-    echo "    qs       - Save and quit"
-    echo "    qo       - Open quickfix"
-    echo "    qc       - Close quickfix"
-    echo ""
-    echo "  w + key    - Window operations:"
-    echo "    ww       - Switch to other window"
-    echo "    wd       - Delete window"
-    echo "    w-       - Split horizontal"
-    echo "    w|       - Split vertical"
-    echo "    wh/j/k/l - Navigate windows"
-    echo "    wH/J/K/L - Resize windows"
-    echo "    w=       - Balance windows"
-    echo ""
-    echo "  t + key    - Tab operations:"
-    echo "    tn       - New tab"
-    echo "    tc       - Close tab"
-    echo "    th/tl    - Previous/next tab"
-    echo "    to       - Close other tabs"
-    echo ""
-    echo "  g + key    - Git operations:"
-    echo "    gs       - Git status"
-    echo "    gd       - Git diff"
-    echo "    gl       - Git log"
-    echo "    gb       - Git branches"
-    echo "    ga       - Git add all"
-    echo "    gc       - Git commit"
-    echo "    gp       - Git push"
-    echo ""
-    echo "  f + key    - File operations:"
-    echo "    ff       - Find file"
-    echo "    fe       - File explorer"
-    echo "    fv       - Vertical explorer"
-    echo ""
-    echo "  s + key    - Search operations:"
-    echo "    sf       - Find file"
-    echo "    sg       - Grep in files"
-    echo "    sb       - List buffers"
-    echo "    sl       - Search lines in buffer"
-    echo "    sv       - Vim grep"
-    echo ""
-    echo "  u + key    - UI toggles:"
-    echo "    us       - Toggle spelling"
-    echo "    uw       - Toggle wrap"
-    echo "    un       - Toggle line numbers"
-    echo "    uh       - Clear highlights"
-    echo "    ul       - Toggle listchars"
-    echo ""
-    echo "  b + key    - Buffer operations:"
-    echo "    bb       - List buffers"
-    echo "    bl/bh    - Next/previous buffer"
-    echo "    bo       - Close other buffers"
-    echo "    bd       - Delete buffer"
-    echo ""
-    echo "  c + key    - Change operations:"
-    echo "    cd       - Change directory to current file"
+  echo "Leader Key Mappings (<Space> as leader):"
+  echo "  e          - File explorer (:Explore)"
+  echo "  ?          - Show this help"
+  echo ""
+  echo "  q + key    - Quit operations:"
+  echo "    qq       - Quit all"
+  echo "    qs       - Save and quit"
+  echo "    qo       - Open quickfix"
+  echo "    qc       - Close quickfix"
+  echo ""
+  echo "  w + key    - Window operations:"
+  echo "    ww       - Switch to other window"
+  echo "    wd       - Delete window"
+  echo "    w-       - Split horizontal"
+  echo "    w|       - Split vertical"
+  echo "    wh/j/k/l - Navigate windows"
+  echo "    wH/J/K/L - Resize windows"
+  echo "    w=       - Balance windows"
+  echo ""
+  echo "  t + key    - Tab operations:"
+  echo "    tn       - New tab"
+  echo "    tc       - Close tab"
+  echo "    th/tl    - Previous/next tab"
+  echo "    to       - Close other tabs"
+  echo ""
+  echo "  g + key    - Git operations:"
+  echo "    gs       - Git status"
+  echo "    gd       - Git diff"
+  echo "    gl       - Git log"
+  echo "    gb       - Git branches"
+  echo "    ga       - Git add all"
+  echo "    gc       - Git commit"
+  echo "    gp       - Git push"
+  echo ""
+  echo "  f + key    - File operations:"
+  echo "    ff       - Find file"
+  echo "    fe       - File explorer"
+  echo "    fv       - Vertical explorer"
+  echo ""
+  echo "  s + key    - Search operations:"
+  echo "    sf       - Find file"
+  echo "    sg       - Grep in files"
+  echo "    sb       - List buffers"
+  echo "    sl       - Search lines in buffer"
+  echo "    sv       - Vim grep"
+  echo ""
+  echo "  u + key    - UI toggles:"
+  echo "    us       - Toggle spelling"
+  echo "    uw       - Toggle wrap"
+  echo "    un       - Toggle line numbers"
+  echo "    uh       - Clear highlights"
+  echo "    ul       - Toggle listchars"
+  echo ""
+  echo "  b + key    - Buffer operations:"
+  echo "    bb       - List buffers"
+  echo "    bl/bh    - Next/previous buffer"
+  echo "    bo       - Close other buffers"
+  echo "    bd       - Delete buffer"
+  echo ""
+  echo "  c + key    - Change operations:"
+  echo "    cd       - Change directory to current file"
 endfunction
 
 " Leader key mappings
@@ -697,4 +784,3 @@ nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
 " File Explorer (replaces NERDTree)
 nnoremap <C-e> :Lexplore<CR>
 nnoremap <C-f> :find
-
