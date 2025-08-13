@@ -137,10 +137,7 @@ set foldnestmax=3
 " Disable folding by default
 set nofoldenable
 
-" Make signs stable (gitgutter won’t shift text)
-set signcolumn=yes
-
-" Faster CursorHold (gitgutter, linting, etc.)
+" Faster CursorHold (linting, etc.)
 set updatetime=300
 
 " Better quickfix grep (works with :grep)
@@ -305,85 +302,149 @@ if !exists('g:colors_name')
     silent! colorscheme elflord
 endif
 
-" Force status line colors after colorscheme loads
-hi! StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-hi! User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
+" Git branch info
+function! GitBranch()
+  return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
+endfunction
+
+" Parse git branch info for status line
+function! StatuslineGit()
+  let l:branchname = GitBranch()
+  return strlen(l:branchname) > 0?'  '.l:branchname.' ':''
+endfunction
 
 " Optimized status line with autocommand-based mode colors
-" Mode transition functions
-function! s:SetNormalMode()
-    hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
-    let g:current_mode = 'NORMAL'
-endfunction
+" Mode dictionary
+let g:currentmode={
+    \ 'n'  : 'NORMAL',
+    \ 'no' : 'NORMAL',
+    \ 'v'  : 'VISUAL',
+    \ 'V'  : 'V-LINE',
+    \ "\<C-V>" : 'V-BLOCK',
+    \ 's'  : 'SELECT',
+    \ 'S'  : 'S-LINE',
+    \ "\<C-S>" : 'S-BLOCK',
+    \ 'i'  : 'INSERT',
+    \ 'R'  : 'REPLACE',
+    \ 'Rv' : 'V-REPLACE',
+    \ 'c'  : 'COMMAND',
+    \ 'cv' : 'VIM-EX',
+    \ 'ce' : 'EX',
+    \ 'r'  : 'PROMPT',
+    \ 'rm' : 'MORE',
+    \ 'r?' : 'CONFIRM',
+    \ '!'  : 'SHELL',
+    \ 't'  : 'TERMINAL'
+    \}
 
-function! s:SetInsertMode()
-    hi User1 ctermbg=2 ctermfg=0 guibg=#4CAF50 guifg=#000000
-    let g:current_mode = 'INSERT'
-endfunction
-
-function! s:SetVisualMode()
-    hi User1 ctermbg=3 ctermfg=0 guibg=#FF9800 guifg=#000000
-    let g:current_mode = 'VISUAL'
-endfunction
-
-function! s:SetCommandMode()
-    hi User1 ctermbg=5 ctermfg=15 guibg=#9C27B0 guifg=#FFFFFF
-    let g:current_mode = 'COMMAND'
-endfunction
-
-function! s:SetReplaceMode()
-    hi User1 ctermbg=1 ctermfg=15 guibg=#F44336 guifg=#FFFFFF
-    let g:current_mode = 'REPLACE'
-endfunction
-
-" Initialize mode
-let g:current_mode = 'NORMAL'
-call s:SetNormalMode()
-
-set statusline=%1*\ %{g:current_mode}\ %0*\ %F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%04l,%04v][%p%%]\ [LEN=%L]
+" Modular statusline construction
 set laststatus=2
-
-" Fix status line background - set after colorscheme loads
-augroup StatusLineColors
-  autocmd!
-  autocmd ColorScheme * hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-  autocmd ColorScheme * hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-  autocmd VimEnter * hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-  autocmd VimEnter * hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-  autocmd VimEnter * call s:SetNormalMode()
-augroup END
-
-" Mode detection autocommands
-augroup ModeColors
-  autocmd!
-  " Insert mode
-  autocmd InsertEnter * call s:SetInsertMode()
-  autocmd InsertLeave * call s:SetNormalMode()
-  
-  " Visual mode
-  autocmd ModeChanged *:[vV\x16]* call s:SetVisualMode()
-  autocmd ModeChanged [vV\x16]*:* call s:SetNormalMode()
-  
-  " Command mode
-  autocmd CmdlineEnter * call s:SetCommandMode()
-  autocmd CmdlineLeave * call s:SetNormalMode()
-  
-  " Replace mode
-  autocmd ModeChanged *:[rR]* call s:SetReplaceMode()
-  autocmd ModeChanged [rR]*:* call s:SetNormalMode()
-augroup END
-
-" Handle Ctrl-C exit from insert mode (edge case)
-inoremap <c-c> <c-o>:call <SID>SetNormalMode()<cr><c-c>
-
-" Set initial status line colors
-hi StatusLine ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-hi User0 ctermbg=0 ctermfg=15 guibg=#000000 guifg=#ffffff
-hi User1 ctermbg=4 ctermfg=15 guibg=#2196F3 guifg=#FFFFFF
-
-" Remove the default mode status (our statusline shows it)
 set noshowmode
+set statusline=
+set statusline+=%0*\ %{toupper(g:currentmode[mode()])}\  " The current mode
+set statusline+=%4{StatuslineGit()}                      " Git branch
+set statusline+=%1*\ %<%F%m%r%h%w\                       " File path, modified, readonly, helpfile, preview
+set statusline+=%3*│                                     " Separator
+set statusline+=%2*\ %Y\                                 " FileType
+set statusline+=%3*│                                     " Separator
+set statusline+=%2*\ %{''.(&fenc!=''?&fenc:&enc).''}     " Encoding
+set statusline+=\ (%{&ff})                               " FileFormat (dos/unix..)
+set statusline+=%=                                       " Right Side
+set statusline+=%3*│                                     " Separator
+set statusline+=%2*\ col:\ %02v\                         " Column number
+set statusline+=%3*│                                     " Separator
+set statusline+=%4*\ %3p%%\ %02l/%L\                     " Percentage of Doc, Line number / total lines
+set statusline+=%0*\ %n\                                 " Buffer number
 
+" Static highlight group colors
+hi User1 ctermbg=15 ctermfg=0 guibg=#3E3C3B guifg=#FFFFFF
+hi User2 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#FFFFFF
+hi User3 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#303030
+hi User5 ctermfg=236 ctermbg=236 guibg=#303030 guifg=#F581F3
+
+" Mode-based statusline color changes
+augroup StatusLineModeColors
+    autocmd!
+    let s:last_bucket = ''
+
+    " Get mode
+    function! s:BucketForMode(m) abort
+      let m = a:m
+      " Insert modes: i, ic, ix
+      if m[0] ==# 'i'
+        return 'insert'
+      " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
+      elseif m[0] ==# 'R'
+        return 'replace'
+      " Visual & Select: v, V, ^V, s, S, ^S
+      elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
+        return 'visual'
+      " Terminal
+      elseif m ==# 't'
+        return 'terminal'
+      " Command-line & prompts: c, cv, ce, r, rm, r?, !
+      elseif m[0] =~# '^\%(c\|r\|!\)'
+        return 'cmdline'
+      " Normal and operator-pending fall here
+      else
+        return 'normal'
+      endif
+    endfunction
+
+    " Apply mode colors
+    function! s:ApplyModeColor(bucket) abort
+      if s:last_bucket ==# a:bucket | return | endif
+
+      if a:bucket ==# 'insert'
+        hi StatusLine guibg=#FFFFFF guifg=#4CAF50 ctermbg=15 ctermfg=2
+        hi User0      guibg=#3E3C3B guifg=#4CAF50 ctermbg=15 ctermfg=2
+        hi User4      guibg=#3E3C3B guifg=#4CAF50 ctermbg=15 ctermfg=2
+      elseif a:bucket ==# 'visual'
+        hi StatusLine guibg=#000000 guifg=#FF9800 ctermbg=0  ctermfg=3
+        hi User0      guibg=#3E3C3B guifg=#FF9800 ctermbg=0  ctermfg=3
+        hi User4      guibg=#3E3C3B guifg=#FF9800 ctermbg=0  ctermfg=3
+      elseif a:bucket ==# 'replace'
+        hi StatusLine guibg=#FFFFFF guifg=#F44336 ctermbg=15 ctermfg=1
+        hi User0      guibg=#3E3C3B guifg=#F44336 ctermbg=15 ctermfg=1
+        hi User4      guibg=#3E3C3B guifg=#F44336 ctermbg=15 ctermfg=1
+      elseif a:bucket ==# 'cmdline'
+        hi StatusLine guibg=#3E3C3B guifg=#F686FC ctermbg=15 ctermfg=5
+        hi User0      guibg=#3E3C3B guifg=#F686FC ctermbg=15 ctermfg=5
+        hi User4      guibg=#3E3C3B guifg=#F686FC ctermbg=15 ctermfg=5
+      elseif a:bucket ==# 'terminal'
+        hi StatusLine guibg=#FFFFFF guifg=#FF8800 ctermbg=15 ctermfg=208
+        hi User0      guibg=#3E3C3B guifg=#FF8800 ctermbg=15 ctermfg=208
+        hi User4      guibg=#3E3C3B guifg=#FF8800 ctermbg=15 ctermfg=208
+      else " normal
+        hi StatusLine guibg=#FFFFFF guifg=#2196F3 ctermbg=15 ctermfg=4
+        hi User0      guibg=#3E3C3B guifg=#2196F3 ctermbg=15 ctermfg=4
+        hi User4      guibg=#3E3C3B guifg=#2196F3 ctermbg=15 ctermfg=4
+      endif
+
+      let s:last_bucket = a:bucket
+    endfunction
+
+  " Prep before entering cmdline so colors flip immediately
+  function! s:CmdlinePrep(ch) abort
+    call <SID>ApplyModeColor('cmdline')
+    silent! redrawstatus!
+    return a:ch
+  endfunction
+
+  " Instant flip on :, /, ?
+  nnoremap <expr> : <SID>CmdlinePrep(':')
+  nnoremap <expr> / <SID>CmdlinePrep('/')
+  nnoremap <expr> ? <SID>CmdlinePrep('?')
+
+    " Use <SID> to call script-local functions from autocommands
+    autocmd ModeChanged *:* call <SID>ApplyModeColor(<SID>BucketForMode(get(v:event,'new_mode',mode(1))))
+    autocmd VimEnter *  call <SID>ApplyModeColor(<SID>BucketForMode(mode(1)))
+augroup END
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Plugin Replacements
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Visual indentation (replaces indentLine plugin)
 set list
 set listchars=tab:│\ ,trail:·,extends:>,precedes:<,nbsp:+
@@ -420,9 +481,9 @@ function! ToggleComment()
         \ 'html': '<!--',
         \ 'css': '/*'
     \ }
-    
+
     let char = get(comment_char, &filetype, '#')
-    
+
     if getline('.') =~ '^\s*' . escape(char, '/*')
         execute 's/^\(\s*\)' . escape(char, '/*') . '\s*/\1/'
     else
@@ -553,16 +614,16 @@ nnoremap <leader>gc :!git commit<CR>
 nnoremap <leader>ga :!git add .<CR>
 
 " Files
-nnoremap <leader>ff :find 
+nnoremap <leader>ff :find
 nnoremap <leader>fe :Explore<CR>
 nnoremap <leader>fv :Vexplore<CR>
 
 " Search
-nnoremap <leader>sf :find 
+nnoremap <leader>sf :find
 nnoremap <leader>sg :vimgrep // **/*<Left><Left><Left><Left><Left><Left>
 nnoremap <leader>sb :ls<CR>
 nnoremap <leader>sl :g//<Left>
-nnoremap <leader>sv :vimgrep 
+nnoremap <leader>sv :vimgrep
 
 " User Interface Settings
 nnoremap <leader>us :setlocal spell!<CR>
@@ -583,4 +644,5 @@ nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
 
 " File Explorer (replaces NERDTree)
 nnoremap <C-e> :Explore<CR>
-nnoremap <C-f> :find 
+nnoremap <C-f> :find
+
