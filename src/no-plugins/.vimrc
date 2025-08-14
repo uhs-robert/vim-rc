@@ -1,4 +1,4 @@
-
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Maintainer:
 "       Robert Hill - @uhs-robert
 "
@@ -15,6 +15,7 @@
 "    ### Visual Indent Guides
 "    ### Netrw (Explorer)
 "    ### Toggle Comments
+"    ### Fuzzy Finder (FZF)
 "    ### Leader Key / Which Key Mappings
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -627,6 +628,189 @@ vnoremap gc :call ToggleComment()<CR>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ### Fuzzy Finder (FZF)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ------------------ Config ---------------------------------------------------
+let g:FzfPickerStyle = 'popup'   " 'popup' | 'bottom' | 'tab'
+let g:FzfSplitHeight = 40        " lines when using bottom split
+let g:FzfVSplitWidth = 40        " (unused here; left/right styles easy to add)
+let g:FzfPreviewSide   = 'right' " or 'down'
+let g:FzfPreviewSize   = '60%'   " e.g. '50%', '40%'
+let g:FzfPreviewBorder = 1       " 1=border, 0=no border
+
+" ----------------------------------------------------------------------------
+
+" -------- fzf command builder with preview -----------------
+" Chooses a fast file lister and a pretty preview (bat if present).
+" Returns argv for term_start(): ['sh','-c','<cmdstring>']
+function! s:_fzf_build_cmd(tmpfile) abort
+  " File lister (prefer rg or fd; fallback to find)
+  if executable('rg')
+    let l:lister = 'rg --files --hidden --follow -g "!.git"'
+  elseif executable('fd')
+    let l:lister = 'fd -t f -H -L .'
+  else
+    " Portable find; strip leading "./"
+    let l:lister = 'find . -type f | sed "s#^\./##"'
+  endif
+
+  " Previewer (prefer bat; fallback to sed/head)
+  if executable('bat')
+    let l:preview = "bat --style=numbers --color=always --line-range=:300 --pager=never -- {}"
+  else
+    " Show first 300 lines safely; no colors
+    let l:preview = "sh -c 'sed -n 1,300p -- \"$0\" 2>/dev/null || head -n 300 -- \"$0\"' {}"
+  endif
+
+  " Preview layout (right 60% with border; tweak with globals if you like)
+  let l:pv_size   = get(g:, 'FzfPreviewSize', '60%')
+  let l:pv_side   = get(g:, 'FzfPreviewSide', 'right')   " 'right'|'down'
+  let l:pv_border = get(g:, 'FzfPreviewBorder', 1) ? ',border' : ''
+  let l:pvopt     = printf('--preview-window=%s,%s%s', l:pv_side, l:pv_size, l:pv_border)
+
+  " The full command: list → fzf with preview → write selection to tmpfile
+  let l:cmd = printf('%s | fzf --bind=enter:accept --preview %s %s > %s',
+        \ l:lister,
+        \ shellescape(l:preview),
+        \ l:pvopt,
+        \ shellescape(a:tmpfile))
+
+  return ['sh', '-c', l:cmd]
+endfunction
+
+" Public entry: open fzf and edit the chosen file with mode: 'edit'|'vsplit'|'tabedit'
+function! s:FzfPick(mode) abort
+  if executable('fzf') == 0
+    echohl ErrorMsg | echom "fzf not found in $PATH" | echohl None | return
+  endif
+
+  " Try tmux popup when requested
+  if get(g:, 'FzfPickerStyle', 'popup') ==# 'popup' && exists('$TMUX') && executable('fzf-tmux')
+    call s:_fzf_tmux_popup(a:mode)
+    return
+  endif
+
+  " Else use Vim terminal (bottom split or tab) if available
+  if has('terminal') && exists('*term_start')
+    if get(g:, 'FzfPickerStyle', 'popup') ==# 'tab'
+      call s:_fzf_tab(a:mode)
+    else
+      call s:_fzf_bottom(a:mode)
+    endif
+    return
+  endif
+
+  " Last resort: blocking shell
+  call s:_fzf_system(a:mode)
+endfunction
+
+" --- Impl: tmux popup via fzf-tmux (best 'popup' on servers) ----------------
+function! s:_fzf_tmux_popup(mode) abort
+  let tmp = tempname()
+  " Build preview pieces (reuse logic from builder)
+  if executable('bat')
+    let preview = "bat --style=numbers --color=always --line-range=:300 --pager=never -- {}"
+  else
+    let preview = "sh -c 'sed -n 1,300p -- \"$0\" 2>/dev/null || head -n 300 -- \"$0\"' {}"
+  endif
+  let pv_size = get(g:, 'FzfPreviewSize', '60%')
+  let pv_side = get(g:, 'FzfPreviewSide', 'right')
+  let pv_border = get(g:, 'FzfPreviewBorder', 1) ? ',border' : ''
+  let pvopt = printf('--preview-window=%s,%s%s', pv_side, pv_size, pv_border)
+
+  " Use a robust lister too (same as builder)
+  if executable('rg')
+    let lister = 'rg --files --hidden --follow -g "!.git"'
+  elseif executable('fd')
+    let lister = 'fd -t f -H -L .'
+  else
+    let lister = 'find . -type f | sed "s#^\./##"'
+  endif
+
+  " 80% x 60% tmux popup with preview
+  let sh = printf('%s | fzf-tmux -p 80%%,60%% --preview %s %s > %s',
+        \ lister, shellescape(preview), pvopt, shellescape(tmp))
+  silent execute '!sh -c ' . shellescape(sh)
+  redraw!
+
+  if filereadable(tmp)
+    let sel = readfile(tmp)
+    call delete(tmp)
+    if !empty(sel) && !empty(sel[0])
+      execute 'tabedit ' . fnameescape(trim(sel[0]))
+    endif
+  endif
+endfunction
+
+" --- Impl: bottom terminal split with term_start + exit_cb ------------------
+let s:fzf_job2buf = {}
+function! s:_fzf_bottom(mode) abort
+  let tmp = tempname()
+  let cmd = s:_fzf_build_cmd(tmp)   " <— use preview build
+  botright split
+  execute 'resize ' . get(g:, 'FzfSplitHeight', 12)
+  setlocal winfixheight nobuflisted noswapfile
+  let buf = term_start(cmd, {'curwin':1, 'exit_cb': function('<SID>_fzf_exit'), 'term_finish': 'close'})
+  let job = term_getjob(buf)
+  let key = exists('*job_info') ? string(job_info(job).process) : string(job)
+  let s:fzf_job2buf[key] = [buf, tmp]
+  startinsert
+endfunction
+
+
+" --- Impl: temporary tab terminal ------------------------------------------
+function! s:_fzf_tab(mode) abort
+  let tmp = tempname()
+  let cmd = s:_fzf_build_cmd(tmp)   " <— use preview build
+  tabnew
+  let buf = term_start(cmd, {'curwin':1, 'exit_cb': function('<SID>_fzf_exit'), 'term_finish': 'close'})
+  let job = term_getjob(buf)
+  let key = exists('*job_info') ? string(job_info(job).process) : string(job)
+  let s:fzf_job2buf[key] = [buf, tmp]
+  startinsert
+endfunction
+
+" --- Common exit_cb: open selection, cleanup --------------------------------
+function! s:_fzf_exit(job, status) abort
+  " Use process id (Vim) instead of 'id'
+  let key = exists('*job_info') ? string(job_info(a:job).process) : string(a:job)
+  if !has_key(s:fzf_job2buf, key) | return | endif
+  let [buf, tmp] = s:fzf_job2buf[key]
+  call remove(s:fzf_job2buf, key)
+
+  " Read selection & clean temp
+  let sel = []
+  if a:status == 0 && filereadable(tmp)
+    let sel = readfile(tmp)
+  endif
+  if filereadable(tmp) | call delete(tmp) | endif
+
+  " Close the hosting window/buffer (term_finish=close should do it; this is defensive)
+  if bufwinnr(buf) != -1 | execute bufwinnr(buf) . 'wincmd c' | endif
+  if bufexists(buf)      | execute 'bwipeout!' buf           | endif
+
+  " Always open in a new tab
+  if !empty(sel) && !empty(sel[0])
+    execute 'tabedit ' . fnameescape(trim(sel[0]))
+  endif
+endfunction
+
+" --- Fallback: blockingyy shell ------------------------------------------------
+function! s:_fzf_system(mode) abort
+  let tmp = tempname()
+  let argv = s:_fzf_build_cmd(tmp)
+  silent execute '!' . join(argv, ' ')
+  redraw!
+  if filereadable(tmp)
+    let sel = readfile(tmp)
+    call delete(tmp)
+    if !empty(sel) && !empty(sel[0])
+      execute 'tabedit ' . fnameescape(trim(sel[0]))
+    endif
+  endif
+endfunction
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ### Leader Key / Which Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " --- Which Key Settings (user config) --------------------------------------
@@ -823,7 +1007,7 @@ function! s:WinMenu() abort
   let step = get(g:, 'LeaderResizeStep', 10)
   let spec = [
     \ ['w', s:Cmd('Other window',      'wincmd w')],
-    \ ['d', s:Cmd('Delete window',     'wincmd c')],
+    \ ['c', s:Cmd('Close window',     'wincmd c')],
     \ ['-', s:Cmd('Split horizontal',  'wincmd s')],
     \ ['|', s:Cmd('Split vertical',    'wincmd v')],
     \ ['h', s:Cmd('Go left',           'wincmd h')],
@@ -870,8 +1054,8 @@ function! s:BufMenu() abort
     \ ['l', s:Cmd('Next buffer',        'bnext')],
     \ ['h', s:Cmd('Prev buffer',        'bprevious')],
     \ ['a', s:Cmd('Alternate buffer',   'buffer #')],
-    \ ['d', s:Cmd('Delete buffer',      'bd')],
-    \ ['D', s:Cmd('Wipeout buffer',     'bwipeout')],
+    \ ['c', s:Cmd('Close buffer',       'bd')],
+    \ ['d', s:Cmd('Delete all buffers', 'bwipeout')],
     \ ['o', s:Cmd('Only this buffer',   'execute "%bd | e# | bd #"')],
     \ ['p', s:Cmd('Pick by number :b ', 'call <SID>TypeCmd("b ")')],
     \ ]
@@ -883,6 +1067,7 @@ function! s:FileMenu() abort
     \ ['e', s:Cmd('Explore (netrw)',     'Explore')],
     \ ['v', s:Cmd('Explore vertical',    'Lexplore')],
     \ ['f', s:Cmd('Find file (:find)',   'call <SID>TypeCmd("find ")')],
+    \ ['F', s:Cmd('Find file (fzf)',     'call <SID>FzfPick("edit")')],
     \ ['w', s:Cmd('Write',               'write')],
     \ ['W', s:Cmd('Save As (:w )',       'call <SID>TypeCmd("w ")')],
     \ ['r', s:Cmd('Edit alternate file', 'e #')],
@@ -896,6 +1081,7 @@ function! s:SearchMenu() abort
     \ ['?', s:Cmd('Backward search',      'call <SID>TypeCmd("?")')],
     \ ['*', s:Cmd('Search word under *',  'normal *')],
     \ ['#', s:Cmd('Search word under #',  'normal #')],
+    \ ['f', s:Cmd('Find file (fzf)',     'call <SID>FzfPick("edit")')],
     \ ['b', s:Cmd('vimgrep current %',    'call <SID>TypeCmd("vimgrep /%")')],
     \ ['g', s:Cmd('vimgrep project',      'call <SID>TypeCmd("vimgrep ")')],
     \ ['l', s:Cmd('Global :g// (print)',  'call <SID>TypeCmd("g/")')],
