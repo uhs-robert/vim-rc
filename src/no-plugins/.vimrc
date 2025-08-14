@@ -12,12 +12,13 @@
 "    ## Custom Key Mappings
 "    ## Theme and Status Line
 "    ## Plugin Replacements
+"    ### Visual Indent Guides
 "    ### Netrw (Explorer)
 "    ### Toggle Comments
-"    ## Leader Key Mappings
+"    ### Leader Key / Which Key Mappings
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
+let mapleader = " "
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## General
@@ -32,9 +33,6 @@ filetype indent on
 " Set to auto read when a file is changed from the outside
 set autoread
 au FocusGained,BufEnter * silent! checktime
-
-" With a map leader it's possible to do extra key combinations
-let mapleader = " "
 
 " Fast saving
 nnoremap <C-s> :write<CR>
@@ -504,7 +502,6 @@ function! s:ActiveIndentUpdate() abort
   let sw = (&shiftwidth > 0 ? &shiftwidth : &tabstop)
   if sw <= 0
     if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | unlet w:activeindent_id | endif
-    setlocal colorcolumn=
     return
   endif
 
@@ -514,7 +511,6 @@ function! s:ActiveIndentUpdate() abort
   " No indent on current line → clear and bail
   if ind <= 0
     if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | unlet w:activeindent_id | endif
-    setlocal colorcolumn=
     return
   endif
 
@@ -537,9 +533,6 @@ function! s:ActiveIndentUpdate() abort
   let pat = '\%>' . (top - 1) . 'l\%<' . (bot + 1) . 'l^ \{' . (col - 1) . '}\zs '
   if exists('w:activeindent_id') | call matchdelete(w:activeindent_id) | endif
   let w:activeindent_id = matchadd('IndentActive', pat, 100)
-
-  " Fill gaps on blank lines with a faint column background
-  execute 'setlocal colorcolumn=' . col
 endfunction
 
 augroup ActiveIndent
@@ -635,152 +628,388 @@ vnoremap gc :call ToggleComment()<CR>
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" ## Leader Key Mappings
+" ### Leader Key / Which Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Simple help function for leader key mappings
-function! ShowLeaderHelp()
-  echo "Leader Key Mappings (<Space> as leader):"
-  echo "  e          - File explorer (:Explore)"
-  echo "  ?          - Show this help"
-  echo ""
-  echo "  q + key    - Quit operations:"
-  echo "    qq       - Quit all"
-  echo "    qs       - Save and quit"
-  echo "    qo       - Open quickfix"
-  echo "    qc       - Close quickfix"
-  echo ""
-  echo "  w + key    - Window operations:"
-  echo "    ww       - Switch to other window"
-  echo "    wd       - Delete window"
-  echo "    w-       - Split horizontal"
-  echo "    w|       - Split vertical"
-  echo "    wh/j/k/l - Navigate windows"
-  echo "    wH/J/K/L - Resize windows"
-  echo "    w=       - Balance windows"
-  echo ""
-  echo "  t + key    - Tab operations:"
-  echo "    tn       - New tab"
-  echo "    tc       - Close tab"
-  echo "    th/tl    - Previous/next tab"
-  echo "    to       - Close other tabs"
-  echo ""
-  echo "  g + key    - Git operations:"
-  echo "    gs       - Git status"
-  echo "    gd       - Git diff"
-  echo "    gl       - Git log"
-  echo "    gb       - Git branches"
-  echo "    ga       - Git add all"
-  echo "    gc       - Git commit"
-  echo "    gp       - Git push"
-  echo ""
-  echo "  f + key    - File operations:"
-  echo "    ff       - Find file"
-  echo "    fe       - File explorer"
-  echo "    fv       - Vertical explorer"
-  echo ""
-  echo "  s + key    - Search operations:"
-  echo "    sf       - Find file"
-  echo "    sg       - Grep in files"
-  echo "    sb       - List buffers"
-  echo "    sl       - Search lines in buffer"
-  echo "    sv       - Vim grep"
-  echo ""
-  echo "  u + key    - UI toggles:"
-  echo "    us       - Toggle spelling"
-  echo "    uw       - Toggle wrap"
-  echo "    un       - Toggle line numbers"
-  echo "    uh       - Clear highlights"
-  echo "    ul       - Toggle listchars"
-  echo ""
-  echo "  b + key    - Buffer operations:"
-  echo "    bb       - List buffers"
-  echo "    bl/bh    - Next/previous buffer"
-  echo "    bo       - Close other buffers"
-  echo "    bd       - Delete buffer"
-  echo ""
-  echo "  c + key    - Change operations:"
-  echo "    cd       - Change directory to current file"
+" --- Which Key settings (user config) --------------------------------------
+let g:LeaderMenuPos    = 'botright'     " one of: center, botright, topright, botleft, topleft, cursor
+let g:LeaderMenuMargin = [1, 2, 1, 2] " top, right, bottom, left (only used for screen-anchored positions)
+
+" Make mappings not rush you; keep fast terminal keycodes
+set timeout timeoutlen=300
+set ttimeout ttimeoutlen=50
+
+" Overlay menu if Vim supports popups; otherwise fall back to split
+function! s:Which(title, menu) abort
+  if has('popupwin')
+    call s:WhichPopup(a:title, a:menu)
+  else
+    call s:WhichSplit(a:title, a:menu)
+  endif
 endfunction
 
+" --- Popup implementation (no layout shift) -------------------------------
+function! s:WhichPopup(title, menu) abort
+  " Build lines
+  let lines = [a:title, '']
+  for k in sort(keys(a:menu))
+    call add(lines, printf('  %-3s %s', k, a:menu[k][0]))
+  endfor
+
+  " Compute width for nicer centering
+  let w = 0
+  for l in lines
+    let w = max([w, strdisplaywidth(l)])
+  endfor
+  let w = min([&columns - 4, w + 4])  " padding
+  let h = len(lines)
+
+    " Resolve position
+  let pos    = get(g:, 'LeaderMenuPos', 'center')
+  let m      = get(g:, 'LeaderMenuMargin', [1, 2, 1, 2]) " t r b l
+  let [mt, mr, mb, ml] = [m[0], m[1], m[2], m[3]]
+
+  if pos ==# 'center'
+    let line = max([1, float2nr((&lines - h)/2)])
+    let col  = max([1, float2nr((&columns - w)/2)])
+  elseif pos ==# 'botright'
+    let line = max([1, &lines  - h - mb])
+    let col  = max([1, &columns - w - mr])
+  elseif pos ==# 'topright'
+    let line = max([1, 1 + mt])
+    let col  = max([1, &columns - w - mr])
+  elseif pos ==# 'botleft'
+    let line = max([1, &lines  - h - mb])
+    let col  = max([1, 1 + ml])
+  elseif pos ==# 'topleft'
+    let line = max([1, 1 + mt])
+    let col  = max([1, 1 + ml])
+  elseif pos ==# 'cursor'
+    " anchor to cursor; margins act as offsets
+    let line = 'cursor+' . string(max([0, mt]))
+    let col  = 'cursor+' . string(max([0, ml]))
+  else
+    " fallback: center
+    let line = max([1, float2nr((&lines - h)/2)])
+    let col  = max([1, float2nr((&columns - w)/2)])
+  endif
+
+ " Create popup
+  let id = popup_create(lines, {
+    \ 'line': line,
+    \ 'col':  col,
+    \ 'minwidth': w,
+    \ 'maxwidth': w,
+    \ 'padding': [0,1,0,1],
+    \ 'border': [1,1,1,1],
+    \ 'borderchars': ['─','│','─','│','┌','┐','┘','└'],
+    \ 'zindex': 300,
+    \ 'highlight': 'Pmenu',
+    \ 'borderhighlight': ['PmenuSel'],
+    \ })
+
+  redraw!
+  let ch = nr2char(getchar())
+  call popup_close(id)
+
+  if has_key(a:menu, ch)
+    execute a:menu[ch][1]
+  endif
+endfunction
+
+" --- Split fallback (used on older Vim) -----------------------------------
+function! s:WhichSplit(title, menu) abort
+  botright 10new
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal modifiable
+  let lines = [a:title, '']
+  for k in sort(keys(a:menu))
+    call add(lines, printf('  %-3s %s', k, a:menu[k][0]))
+  endfor
+  call setline(1, lines)
+  setlocal nomodifiable
+  normal! gg
+  redraw!
+  let ch = nr2char(getchar())
+  bwipeout!
+  if has_key(a:menu, ch)
+    execute a:menu[ch][1]
+  endif
+endfunction
+
+
+" --- Sub-menus ---------------------------------------------------------------
+function! s:WinMenu() abort
+  call s:Which('Windows (press key):', {
+  \ 'w': ['Other window',          'wincmd w'],
+  \ 'd': ['Delete window',         'wincmd c'],
+  \ '-': ['Split horizontal',      'wincmd s'],
+  \ '|': ['Split vertical',        'wincmd v'],
+  \ 'h': ['Go left',               'wincmd h'],
+  \ 'j': ['Go down',               'wincmd j'],
+  \ 'k': ['Go up',                 'wincmd k'],
+  \ 'l': ['Go right',              'wincmd l'],
+  \ 'H': ['Resize wider',          'execute "vertical resize -5"'],
+  \ 'L': ['Resize narrower',       'execute "vertical resize +5"'],
+  \ 'K': ['Resize shorter',        'execute "resize -5"'],
+  \ 'J': ['Resize taller',         'execute "resize +5"'],
+  \ '=': ['Balance',               'wincmd ='],
+  \ })
+endfunction
+
+function! s:TabMenu() abort
+  call s:Which('Tabs (press key):', {
+  \ 'n': ['New tab',               'tabnew'],
+  \ 'c': ['Close tab',             'tabclose'],
+  \ 'o': ['Close other tabs',      'tabonly'],
+  \ 'h': ['Prev tab',              'tabprevious'],
+  \ 'l': ['Next tab',              'tabnext'],
+  \ 'z': ['Last tab',              'tablast'],
+  \ })
+endfunction
+
+function! s:BufMenu() abort
+  call s:Which('Buffers (press key):', {
+  \ 'b': ['List buffers',          'ls'],
+  \ 'l': ['Next buffer',           'bnext'],
+  \ 'h': ['Prev buffer',           'bprevious'],
+  \ 'd': ['Delete buffer',         'bd'],
+  \ 'o': ['Only this buffer',      'execute "%bd | e# | bd #"'],
+  \ })
+endfunction
+
+function! s:FileMenu() abort
+  call s:Which('Files (press key):', {
+  \ 'e': ['Explore (netrw)',       'Explore'],
+  \ 'v': ['Explore vertical',      'Lexplore'],
+  \ 'f': ['Find file (:find)',     'normal :find '],
+  \ })
+endfunction
+
+function! s:SearchMenu() abort
+  call s:Which('Search (press key):', {
+  \ 'b': ['List buffers',          'ls'],
+  \ 'l': ['Search lines in buf',   'normal :g//'],
+  \ 'g': ['vimgrep in project',    'normal :vimgrep // **/*'],
+  \ 'v': [':vimgrep (manual)',     'normal :vimgrep '],
+  \ })
+endfunction
+
+function! s:GitMenu() abort
+  call s:Which('Git (press key):', {
+  \ 's': ['git status',            '!git status'],
+  \ 'd': ['git diff',              '!git diff'],
+  \ 'l': ['git log --oneline',     '!git log --oneline -10'],
+  \ 'b': ['git branch -a',         '!git branch -a'],
+  \ 'a': ['git add .',             '!git add .'],
+  \ 'c': ['git commit',            '!git commit'],
+  \ 'p': ['git push',              '!git push'],
+  \ })
+endfunction
+
+function! s:UIMenu() abort
+  call s:Which('UI toggles (press key):', {
+  \ 's': ['Toggle spell',          'setlocal spell!'],
+  \ 'w': ['Toggle wrap',           'setlocal wrap!'],
+  \ 'n': ['Toggle number',         'setlocal number!'],
+  \ 'h': ['Clear highlights',      'noh'],
+  \ 'l': ['Toggle listchars',      'setlocal list!'],
+  \ })
+endfunction
+
+function! s:QuitMenu() abort
+  call s:Which('Quit / Quickfix (press key):', {
+  \ 'q': ['Quit all!',             'qall!'],
+  \ 's': ['Save & quit',           'wq!'],
+  \ 'o': ['Open quickfix',         'copen'],
+  \ 'c': ['Close quickfix',        'cclose'],
+  \ })
+endfunction
+
+function! CheatSheet() abort
+  " Persistent cheat sheet that stays open until you press q
+  tabnew
+  setlocal buftype=nofile bufhidden=wipe noswapfile
+  call setline(1, [
+  \ 'Leader cheatsheet (press q to close)',
+  \ '',
+  \ '<Space>w  → Windows menu',
+  \ '<Space>t  → Tabs menu',
+  \ '<Space>b  → Buffers menu',
+  \ '<Space>f  → Files menu',
+  \ '<Space>s  → Search menu',
+  \ '<Space>g  → Git menu',
+  \ '<Space>u  → UI toggles',
+  \ '<Space>q  → Quit/Quickfix menu',
+  \ '<Space>?  → This cheatsheet',
+  \ ])
+  nnoremap <silent><buffer> q :bwipeout!<CR>
+endfunction
+
+" --- Root menu and top-level leader bindings -------------------------------
+function! LeaderRoot() abort
+  call s:Which('Leader menu (press key):', {
+  \ 'w': ['Windows', 'call s:WinMenu()'],
+  \ 't': ['Tabs',    'call s:TabMenu()'],
+  \ 'b': ['Buffers', 'call s:BufMenu()'],
+  \ 'f': ['Files',   'call s:FileMenu()'],
+  \ 's': ['Search',  'call s:SearchMenu()'],
+  \ 'g': ['Git',     'call s:GitMenu()'],
+  \ 'u': ['UI',      'call s:UIMenu()'],
+  \ 'q': ['Quit',    'call s:QuitMenu()'],
+    \ '?': ['Cheatsheet',      'call CheatSheet()'],
+  \ })
+endfunction
+
+" Leader = open root menu; Leader? = sticky cheatsheet
+nnoremap <silent> <leader><leader> :<C-u>call LeaderRoot()<CR>
+nnoremap <silent> <leader> :call LeaderRoot()<CR>
+nnoremap <silent> <leader>? :call CheatSheet()<CR>
+
+" Simple help function for leader key mappings
+" function! ShowLeaderHelp()
+  " echo "Leader Key Mappings (<Space> as leader):"
+  " echo "  e          - File explorer (:Explore)"
+  " echo "  ?          - Show this help"
+  " echo ""
+  " echo "  q + key    - Quit operations:"
+  " echo "    qq       - Quit all"
+  " echo "    qs       - Save and quit"
+  " echo "    qo       - Open quickfix"
+  " echo "    qc       - Close quickfix"
+  " echo ""
+  " echo "  w + key    - Window operations:"
+  " echo "    ww       - Switch to other window"
+  " echo "    wd       - Delete window"
+  " echo "    w-       - Split horizontal"
+  " echo "    w|       - Split vertical"
+  " echo "    wh/j/k/l - Navigate windows"
+  " echo "    wH/J/K/L - Resize windows"
+  " echo "    w=       - Balance windows"
+  " echo ""
+  " echo "  t + key    - Tab operations:"
+  " echo "    tn       - New tab"
+  " echo "    tc       - Close tab"
+  " echo "    th/tl    - Previous/next tab"
+  " echo "    to       - Close other tabs"
+  " echo ""
+  " echo "  g + key    - Git operations:"
+  " echo "    gs       - Git status"
+  " echo "    gd       - Git diff"
+  " echo "    gl       - Git log"
+  " echo "    gb       - Git branches"
+  " echo "    ga       - Git add all"
+  " echo "    gc       - Git commit"
+  " echo "    gp       - Git push"
+  " echo ""
+  " echo "  f + key    - File operations:"
+  " echo "    ff       - Find file"
+  " echo "    fe       - File explorer"
+  " echo "    fv       - Vertical explorer"
+  " echo ""
+  " echo "  s + key    - Search operations:"
+  " echo "    sf       - Find file"
+  " echo "    sg       - Grep in files"
+  " echo "    sb       - List buffers"
+  " echo "    sl       - Search lines in buffer"
+  " echo "    sv       - Vim grep"
+  " echo ""
+  " echo "  u + key    - UI toggles:"
+  " echo "    us       - Toggle spelling"
+  " echo "    uw       - Toggle wrap"
+  " echo "    un       - Toggle line numbers"
+  " echo "    uh       - Clear highlights"
+  " echo "    ul       - Toggle listchars"
+  " echo ""
+  " echo "  b + key    - Buffer operations:"
+  " echo "    bb       - List buffers"
+  " echo "    bl/bh    - Next/previous buffer"
+  " echo "    bo       - Close other buffers"
+  " echo "    bd       - Delete buffer"
+  " echo ""
+  " echo "  c + key    - Change operations:"
+  " echo "    cd       - Change directory to current file"
+" endfunction
+"
 " Leader key mappings
-nnoremap <silent> <leader> :call ShowLeaderHelp()<CR>
-
+" nnoremap <silent> <leader> :call ShowLeaderHelp()<CR>
+"
 " One-key actions
-nnoremap <leader>e :Lexplore<CR>
-
+" nnoremap <leader>e :Lexplore<CR>
+"
 " Help
-nnoremap <leader>? :call ShowLeaderHelp()<CR>
-
+" nnoremap <leader>? :call ShowLeaderHelp()<CR>
+"
 " Quit / Quickfix
-nnoremap <leader>qq :qall!<CR>
-nnoremap <leader>qo :copen<CR>
-nnoremap <leader>qc :cclose<CR>
-nnoremap <leader>qs :wq!<CR>
-
+" nnoremap <leader>qq :qall!<CR>
+" nnoremap <leader>qo :copen<CR>
+" nnoremap <leader>qc :cclose<CR>
+" nnoremap <leader>qs :wq!<CR>
+"
 " Windows
-nnoremap <leader>ww <C-W>w
-nnoremap <leader>wd <C-W>c
-nnoremap <leader>w- <C-W>s
-nnoremap <leader>w<Bar> <C-W>v
-nnoremap <leader>w2 <C-W>v
-nnoremap <leader>wh <C-W>h
-nnoremap <leader>wj <C-W>j
-nnoremap <leader>wl <C-W>l
-nnoremap <leader>wk <C-W>k
-nnoremap <leader>wH <C-W>5<
-nnoremap <leader>wJ :resize +5<CR>
-nnoremap <leader>wL <C-W>5>
-nnoremap <leader>wK :resize -5<CR>
-nnoremap <leader>w= <C-W>=
-nnoremap <leader>ws <C-W>s
-nnoremap <leader>wv <C-W>v
-
+" nnoremap <leader>ww <C-W>w
+" nnoremap <leader>wd <C-W>c
+" nnoremap <leader>w- <C-W>s
+" nnoremap <leader>w<Bar> <C-W>v
+" nnoremap <leader>w2 <C-W>v
+" nnoremap <leader>wh <C-W>h
+" nnoremap <leader>wj <C-W>j
+" nnoremap <leader>wl <C-W>l
+" nnoremap <leader>wk <C-W>k
+" nnoremap <leader>wH <C-W>5<
+" nnoremap <leader>wJ :resize +5<CR>
+" nnoremap <leader>wL <C-W>5>
+" nnoremap <leader>wK :resize -5<CR>
+" nnoremap <leader>w= <C-W>=
+" nnoremap <leader>ws <C-W>s
+" nnoremap <leader>wv <C-W>v
+"
 " Tabs
-nnoremap <leader>tn :tabnew<CR>
-nnoremap <leader>to :tabonly<CR>
-nnoremap <leader>tc :tabclose<CR>
-nnoremap <leader>th :tabprevious<CR>
-nnoremap <leader>tl :tabnext<CR>
-nnoremap <leader>tz :tablast<CR>
-
+" nnoremap <leader>tn :tabnew<CR>
+" nnoremap <leader>to :tabonly<CR>
+" nnoremap <leader>tc :tabclose<CR>
+" nnoremap <leader>th :tabprevious<CR>
+" nnoremap <leader>tl :tabnext<CR>
+" nnoremap <leader>tz :tablast<CR>
+"
 " Git (shell-based commands)
-nnoremap <leader>gs :!git status<CR>
-nnoremap <leader>gd :!git diff<CR>
-nnoremap <leader>gl :!git log --oneline -10<CR>
-nnoremap <leader>gb :!git branch -a<CR>
-nnoremap <leader>gp :!git push<CR>
-nnoremap <leader>gc :!git commit<CR>
-nnoremap <leader>ga :!git add .<CR>
-
+" nnoremap <leader>gs :!git status<CR>
+" nnoremap <leader>gd :!git diff<CR>
+" nnoremap <leader>gl :!git log --oneline -10<CR>
+" nnoremap <leader>gb :!git branch -a<CR>
+" nnoremap <leader>gp :!git push<CR>
+" nnoremap <leader>gc :!git commit<CR>
+" nnoremap <leader>ga :!git add .<CR>
+"
 " Files
-nnoremap <leader>ff :find
-nnoremap <leader>fe :Explore<CR>
-nnoremap <leader>fv :Lexplore<CR>
-
+" nnoremap <leader>ff :find
+" nnoremap <leader>fe :Explore<CR>
+" nnoremap <leader>fv :Lexplore<CR>
+"
 " Search
-nnoremap <leader>sf :find
-nnoremap <leader>sg :vimgrep // **/*<Left><Left><Left><Left><Left><Left>
-nnoremap <leader>sb :ls<CR>
-nnoremap <leader>sl :g//<Left>
-nnoremap <leader>sv :vimgrep
-
+" nnoremap <leader>sf :find
+" nnoremap <leader>sg :vimgrep // **/*<Left><Left><Left><Left><Left><Left>
+" nnoremap <leader>sb :ls<CR>
+" nnoremap <leader>sl :g//<Left>
+" nnoremap <leader>sv :vimgrep
+"
 " User Interface Settings
-nnoremap <leader>us :setlocal spell!<CR>
-nnoremap <leader>uw :setlocal wrap!<CR>
-nnoremap <leader>un :setlocal number!<CR>
-nnoremap <leader>uh :noh<CR>
-nnoremap <leader>ul :setlocal list!<CR>
-
+" nnoremap <leader>us :setlocal spell!<CR>
+" nnoremap <leader>uw :setlocal wrap!<CR>
+" nnoremap <leader>un :setlocal number!<CR>
+" nnoremap <leader>uh :noh<CR>
+" nnoremap <leader>ul :setlocal list!<CR>
+"
 " Buffers
-nnoremap <leader>bb :ls<CR>
-nnoremap <leader>bl :bnext<CR>
-nnoremap <leader>bh :bprevious<CR>
-nnoremap <leader>bo :%bd<Bar>e#<CR>
-nnoremap <leader>bd :bd<CR>
-
+" nnoremap <leader>bb :ls<CR>
+" nnoremap <leader>bl :bnext<CR>
+" nnoremap <leader>bh :bprevious<CR>
+" nnoremap <leader>bo :%bd<Bar>e#<CR>
+" nnoremap <leader>bd :bd<CR>
+"
 " Change commands
-nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
+" nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
 
 " File Explorer (replaces NERDTree)
 nnoremap <C-e> :Lexplore<CR>
 nnoremap <C-f> :find
+
