@@ -47,7 +47,6 @@ set mouse=a
 " Confirm on exit when closing unsaved file
 set confirm
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## VIM User Interface
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -630,27 +629,85 @@ vnoremap gc :call ToggleComment()<CR>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ### Leader Key / Which Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" --- Which Key settings (user config) --------------------------------------
+" --- Which Key Settings (user config) --------------------------------------
 let g:LeaderMenuPos    = 'botright'     " one of: center, botright, topright, botleft, topleft, cursor
 let g:LeaderMenuMargin = [1, 2, 1, 2] " top, right, bottom, left (only used for screen-anchored positions)
+let g:LeaderMenuLabel = '␣'          " how to display the leader key in breadcrumbs
+
+" State (script-local)
+let s:crumbs = []   " display labels, e.g. ['␣','Windows']
+let s:stack  = []   " function names, e.g. ['LeaderRoot','WinMenu']
 
 " Make mappings not rush you; keep fast terminal keycodes
 set timeout timeoutlen=300
 set ttimeout ttimeoutlen=50
 
-" Overlay menu if Vim supports popups; otherwise fall back to split
-function! s:Which(title, menu) abort
-  if has('popupwin')
-    call s:WhichPopup(a:title, a:menu)
-  else
-    call s:WhichSplit(a:title, a:menu)
+
+" --- Tiny nav helpers ---------------------------------------------------
+" Get key pressed as string
+function! s:getkey() abort
+  return exists('*getcharstr') ? getcharstr() : nr2char(getchar())
+endfunction
+
+" Go back to previous sub menu
+function! s:Back() abort
+  if len(s:stack) > 1
+    call remove(s:crumbs, -1)
+    call remove(s:stack,  -1)
+    let parent = s:stack[-1]
+    execute 'call <SID>' . parent . '()'
   endif
 endfunction
 
-" --- Popup implementation (no layout shift) -------------------------------
+" Add crumb label, call function
+function! s:Push(label, fname) abort
+  call add(s:crumbs, a:label)
+  call add(s:stack,  a:fname)
+  execute 'call <SID>' . a:fname . '()'
+endfunction
+
+" Build a submenu entry that *navigates* (calls Push with label+fn)
+function! s:Go(label, fn) abort
+  return [a:label, 'call <SID>Push(' . string(a:label) . ',' . string(a:fn) . ')']
+endfunction
+
+" Build a simple command entry (runs an ex-cmd)
+function! s:Cmd(label, ex) abort
+  return [a:label, a:ex]
+endfunction
+
+" Type a cmdline stub and leave the user at the prompt (no <CR>)
+function! s:TypeCmd(stub) abort
+  " :<C-u> clears any leftovers; 'n' = no-remap, immediate
+  call feedkeys(':' . "\<C-u>" . a:stub, 'n')
+endfunction
+
+" Build a dict menu from a compact spec: [ [key, entry], ... ]
+function! s:BuildMenu(spec) abort
+  let m = {}
+  for [k, entry] in a:spec
+    let m[k] = entry
+  endfor
+  return m
+endfunction
+
+" --- Core selector (popup if available, split otherwise) ----------------
+" Overlay menu if Vim supports popups; otherwise fall back to split
+function! s:Which(title, menu) abort
+  if has('popupwin') | call s:WhichPopup(a:title, a:menu)
+  else               | call s:WhichSplit(a:title, a:menu)
+  endif
+endfunction
+
+" Set title
+function! s:_title(base) abort
+  return !empty(s:crumbs) ? join(s:crumbs, ' › ') : a:base
+endfunction
+
+" --- Popup Selector (Modern Vim) ----------------------------------
 function! s:WhichPopup(title, menu) abort
   " Build lines
-  let lines = [a:title, '']
+  let lines = [s:_title(a:title), '']
   for k in sort(keys(a:menu))
     call add(lines, printf('  %-3s %s', k, a:menu[k][0]))
   endfor
@@ -664,8 +721,8 @@ function! s:WhichPopup(title, menu) abort
   let h = len(lines)
 
     " Resolve position
-  let pos    = get(g:, 'LeaderMenuPos', 'center')
-  let m      = get(g:, 'LeaderMenuMargin', [1, 2, 1, 2]) " t r b l
+  let pos = get(g:, 'LeaderMenuPos', 'center')
+  let m = get(g:, 'LeaderMenuMargin', [1, 2, 1, 2]) " top, right, bottom, left
   let [mt, mr, mb, ml] = [m[0], m[1], m[2], m[3]]
 
   if pos ==# 'center'
@@ -708,11 +765,17 @@ function! s:WhichPopup(title, menu) abort
     \ })
 
   redraw!
-  let ch = nr2char(getchar())
+  let key = s:getkey()
   call popup_close(id)
 
-  if has_key(a:menu, ch)
-    execute a:menu[ch][1]
+  " Escape or go back to previous menu
+  if key ==# "\<Esc>" | return | endif
+  if key ==# "\<BS>" || key ==# "\<C-h>" | call s:Back() | return | endif
+
+  " Go to sub menu or execute command
+  if has_key(a:menu, key)
+    " item = [label, ex-command string]
+    execute a:menu[key][1]
   endif
 endfunction
 
@@ -721,293 +784,145 @@ function! s:WhichSplit(title, menu) abort
   botright 10new
   setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
   setlocal modifiable
-  let lines = [a:title, '']
+  let lines = [s:_title(a:title), '']
   for k in sort(keys(a:menu))
-    call add(lines, printf('  %-3s %s', k, a:menu[k][0]))
+    call add(lines, printf('  %-3s => %s', k, a:menu[k][0]))
   endfor
   call setline(1, lines)
   setlocal nomodifiable
   normal! gg
   redraw!
-  let ch = nr2char(getchar())
+  let key = s:getkey()
   bwipeout!
-  if has_key(a:menu, ch)
-    execute a:menu[ch][1]
+
+  if key ==# "\<Esc>" | return | endif
+  if key ==# "\<BS>" || key ==# "\<C-h>" | call s:Back() | return | endif
+
+  if has_key(a:menu, key)
+    execute a:menu[key][1]
   endif
 endfunction
 
 
 " --- Sub-menus ---------------------------------------------------------------
 function! s:WinMenu() abort
-  call s:Which('Windows (press key):', {
-  \ 'w': ['Other window',          'wincmd w'],
-  \ 'd': ['Delete window',         'wincmd c'],
-  \ '-': ['Split horizontal',      'wincmd s'],
-  \ '|': ['Split vertical',        'wincmd v'],
-  \ 'h': ['Go left',               'wincmd h'],
-  \ 'j': ['Go down',               'wincmd j'],
-  \ 'k': ['Go up',                 'wincmd k'],
-  \ 'l': ['Go right',              'wincmd l'],
-  \ 'H': ['Resize wider',          'execute "vertical resize -5"'],
-  \ 'L': ['Resize narrower',       'execute "vertical resize +5"'],
-  \ 'K': ['Resize shorter',        'execute "resize -5"'],
-  \ 'J': ['Resize taller',         'execute "resize +5"'],
-  \ '=': ['Balance',               'wincmd ='],
-  \ })
+  let spec = [
+    \ ['w', s:Cmd('Other window',    'wincmd w')],
+    \ ['d', s:Cmd('Delete window',   'wincmd c')],
+    \ ['-', s:Cmd('Split horizontal','wincmd s')],
+    \ ['|', s:Cmd('Split vertical',  'wincmd v')],
+    \ ['h', s:Cmd('Go left',         'wincmd h')],
+    \ ['j', s:Cmd('Go down',         'wincmd j')],
+    \ ['k', s:Cmd('Go up',           'wincmd k')],
+    \ ['l', s:Cmd('Go right',        'wincmd l')],
+    \ ['H', s:Cmd('Resize wider',    'execute "vertical resize -5"')],
+    \ ['L', s:Cmd('Resize narrower', 'execute "vertical resize +5"')],
+    \ ['K', s:Cmd('Resize shorter',  'execute "resize -5"')],
+    \ ['J', s:Cmd('Resize taller',   'execute "resize +5"')],
+    \ ['=', s:Cmd('Balance',         'wincmd =')],
+    \ ]
+  call s:Which('Windows', s:BuildMenu(spec))
 endfunction
 
 function! s:TabMenu() abort
-  call s:Which('Tabs (press key):', {
-  \ 'n': ['New tab',               'tabnew'],
-  \ 'c': ['Close tab',             'tabclose'],
-  \ 'o': ['Close other tabs',      'tabonly'],
-  \ 'h': ['Prev tab',              'tabprevious'],
-  \ 'l': ['Next tab',              'tabnext'],
-  \ 'z': ['Last tab',              'tablast'],
-  \ })
+  let spec = [
+    \ ['n', s:Cmd('New tab',         'tabnew')],
+    \ ['c', s:Cmd('Close tab',       'tabclose')],
+    \ ['o', s:Cmd('Close other tabs','tabonly')],
+    \ ['h', s:Cmd('Prev tab',        'tabprevious')],
+    \ ['l', s:Cmd('Next tab',        'tabnext')],
+    \ ['z', s:Cmd('Last tab',        'tablast')],
+    \ ]
+  call s:Which('Tabs', s:BuildMenu(spec))
 endfunction
 
 function! s:BufMenu() abort
-  call s:Which('Buffers (press key):', {
-  \ 'b': ['List buffers',          'ls'],
-  \ 'l': ['Next buffer',           'bnext'],
-  \ 'h': ['Prev buffer',           'bprevious'],
-  \ 'd': ['Delete buffer',         'bd'],
-  \ 'o': ['Only this buffer',      'execute "%bd | e# | bd #"'],
-  \ })
+  let spec = [
+    \ ['b', s:Cmd('List buffers',    'ls')],
+    \ ['l', s:Cmd('Next buffer',     'bnext')],
+    \ ['h', s:Cmd('Prev buffer',     'bprevious')],
+    \ ['d', s:Cmd('Delete buffer',   'bd')],
+    \ ['o', s:Cmd('Only this buffer','execute "%bd | e# | bd #"')],
+    \ ]
+  call s:Which('Buffers', s:BuildMenu(spec))
 endfunction
 
 function! s:FileMenu() abort
-  call s:Which('Files (press key):', {
-  \ 'e': ['Explore (netrw)',       'Explore'],
-  \ 'v': ['Explore vertical',      'Lexplore'],
-  \ 'f': ['Find file (:find)',     'normal :find '],
-  \ })
+  let spec = [
+    \ ['e', s:Cmd('Explore (netrw)', 'Explore')],
+    \ ['v', s:Cmd('Explore vertical','Lexplore')],
+    \ ['f', s:Cmd('Find file (:find)','call <SID>TypeCmd("find ")')],
+    \ ]
+  call s:Which('Files', s:BuildMenu(spec))
 endfunction
 
 function! s:SearchMenu() abort
-  call s:Which('Search (press key):', {
-  \ 'b': ['List buffers',          'ls'],
-  \ 'l': ['Search lines in buf',   'normal :g//'],
-  \ 'g': ['vimgrep in project',    'normal :vimgrep // **/*'],
-  \ 'v': [':vimgrep (manual)',     'normal :vimgrep '],
-  \ })
+  let spec = [
+  \ ['b', s:Cmd('Grep in buffer',    'call <SID>TypeCmd("vimgrep /%")')],
+  \ ['g', s:Cmd('Grep in project',   'call <SID>TypeCmd("vimgrep ")')],
+  \ ['l', s:Cmd('Print lines (g//)', 'call <SID>TypeCmd("g/")')],
+  \ ['v', s:Cmd(':vimgrep (manual)', 'call <SID>TypeCmd("vimgrep ")')],
+  \ ]
+  call s:Which('Search', s:BuildMenu(spec))
 endfunction
 
 function! s:GitMenu() abort
-  call s:Which('Git (press key):', {
-  \ 's': ['git status',            '!git status'],
-  \ 'd': ['git diff',              '!git diff'],
-  \ 'l': ['git log --oneline',     '!git log --oneline -10'],
-  \ 'b': ['git branch -a',         '!git branch -a'],
-  \ 'a': ['git add .',             '!git add .'],
-  \ 'c': ['git commit',            '!git commit'],
-  \ 'p': ['git push',              '!git push'],
-  \ })
+  let spec = [
+    \ ['s', s:Cmd('git status',          '!git status')],
+    \ ['d', s:Cmd('git diff',            '!git diff')],
+    \ ['l', s:Cmd('git log --oneline',   '!git log --oneline -10')],
+    \ ['b', s:Cmd('git branch -a',       '!git branch -a')],
+    \ ['a', s:Cmd('git add .',           '!git add .')],
+    \ ['c', s:Cmd('git commit',          '!git commit')],
+    \ ['p', s:Cmd('git push',            '!git push')],
+    \ ]
+  call s:Which('Git', s:BuildMenu(spec))
 endfunction
 
 function! s:UIMenu() abort
-  call s:Which('UI toggles (press key):', {
-  \ 's': ['Toggle spell',          'setlocal spell!'],
-  \ 'w': ['Toggle wrap',           'setlocal wrap!'],
-  \ 'n': ['Toggle number',         'setlocal number!'],
-  \ 'h': ['Clear highlights',      'noh'],
-  \ 'l': ['Toggle listchars',      'setlocal list!'],
-  \ })
+  let spec = [
+    \ ['s', s:Cmd('Toggle spell',    'setlocal spell!')],
+    \ ['w', s:Cmd('Toggle wrap',     'setlocal wrap!')],
+    \ ['n', s:Cmd('Toggle number',   'setlocal number!')],
+    \ ['h', s:Cmd('Clear highlights','noh')],
+    \ ['l', s:Cmd('Toggle listchars','setlocal list!')],
+    \ ]
+  call s:Which('UI toggles', s:BuildMenu(spec))
 endfunction
 
 function! s:QuitMenu() abort
-  call s:Which('Quit / Quickfix (press key):', {
-  \ 'q': ['Quit all!',             'qall!'],
-  \ 's': ['Save & quit',           'wq!'],
-  \ 'o': ['Open quickfix',         'copen'],
-  \ 'c': ['Close quickfix',        'cclose'],
-  \ })
-endfunction
-
-function! CheatSheet() abort
-  " Persistent cheat sheet that stays open until you press q
-  tabnew
-  setlocal buftype=nofile bufhidden=wipe noswapfile
-  call setline(1, [
-  \ 'Leader cheatsheet (press q to close)',
-  \ '',
-  \ '<Space>w  → Windows menu',
-  \ '<Space>t  → Tabs menu',
-  \ '<Space>b  → Buffers menu',
-  \ '<Space>f  → Files menu',
-  \ '<Space>s  → Search menu',
-  \ '<Space>g  → Git menu',
-  \ '<Space>u  → UI toggles',
-  \ '<Space>q  → Quit/Quickfix menu',
-  \ '<Space>?  → This cheatsheet',
-  \ ])
-  nnoremap <silent><buffer> q :bwipeout!<CR>
+  let spec = [
+    \ ['q', s:Cmd('Quit all!',        'qall!')],
+    \ ['s', s:Cmd('Save & quit',      'wq!')],
+    \ ['o', s:Cmd('Open quickfix',    'copen')],
+    \ ['c', s:Cmd('Close quickfix',   'cclose')],
+    \ ]
+  call s:Which('Quit / Quickfix', s:BuildMenu(spec))
 endfunction
 
 " --- Root menu and top-level leader bindings -------------------------------
-function! LeaderRoot() abort
-  call s:Which('Leader menu (press key):', {
-  \ 'w': ['Windows', 'call s:WinMenu()'],
-  \ 't': ['Tabs',    'call s:TabMenu()'],
-  \ 'b': ['Buffers', 'call s:BufMenu()'],
-  \ 'f': ['Files',   'call s:FileMenu()'],
-  \ 's': ['Search',  'call s:SearchMenu()'],
-  \ 'g': ['Git',     'call s:GitMenu()'],
-  \ 'u': ['UI',      'call s:UIMenu()'],
-  \ 'q': ['Quit',    'call s:QuitMenu()'],
-    \ '?': ['Cheatsheet',      'call CheatSheet()'],
-  \ })
+function! s:LeaderRoot() abort
+  let s:crumbs = [get(g:, 'LeaderMenuSpaceLabel', '␣')]
+  let s:stack  = ['LeaderRoot']
+
+  let spec = [
+    \ ['e', s:Cmd('Explorer', 'Lexplore')],
+    \ ['w', s:Go('+Windows', 'WinMenu')],
+    \ ['b', s:Go('+Buffers', 'BufMenu')],
+    \ ['f', s:Go('+Files',   'FileMenu')],
+    \ ['s', s:Go('+Search',  'SearchMenu')],
+    \ ['g', s:Go('+Git',     'GitMenu')],
+    \ ['t', s:Go('+Tabs',    'TabMenu')],
+    \ ['u', s:Go('+UI',      'UIMenu')],
+    \ ['q', s:Go('+Quit',    'QuitMenu')],
+    \ ]
+
+  call s:Which('Leader', s:BuildMenu(spec))
 endfunction
 
-" Leader = open root menu; Leader? = sticky cheatsheet
-nnoremap <silent> <leader><leader> :<C-u>call LeaderRoot()<CR>
-nnoremap <silent> <leader> :call LeaderRoot()<CR>
-nnoremap <silent> <leader>? :call CheatSheet()<CR>
-
-" Simple help function for leader key mappings
-" function! ShowLeaderHelp()
-  " echo "Leader Key Mappings (<Space> as leader):"
-  " echo "  e          - File explorer (:Explore)"
-  " echo "  ?          - Show this help"
-  " echo ""
-  " echo "  q + key    - Quit operations:"
-  " echo "    qq       - Quit all"
-  " echo "    qs       - Save and quit"
-  " echo "    qo       - Open quickfix"
-  " echo "    qc       - Close quickfix"
-  " echo ""
-  " echo "  w + key    - Window operations:"
-  " echo "    ww       - Switch to other window"
-  " echo "    wd       - Delete window"
-  " echo "    w-       - Split horizontal"
-  " echo "    w|       - Split vertical"
-  " echo "    wh/j/k/l - Navigate windows"
-  " echo "    wH/J/K/L - Resize windows"
-  " echo "    w=       - Balance windows"
-  " echo ""
-  " echo "  t + key    - Tab operations:"
-  " echo "    tn       - New tab"
-  " echo "    tc       - Close tab"
-  " echo "    th/tl    - Previous/next tab"
-  " echo "    to       - Close other tabs"
-  " echo ""
-  " echo "  g + key    - Git operations:"
-  " echo "    gs       - Git status"
-  " echo "    gd       - Git diff"
-  " echo "    gl       - Git log"
-  " echo "    gb       - Git branches"
-  " echo "    ga       - Git add all"
-  " echo "    gc       - Git commit"
-  " echo "    gp       - Git push"
-  " echo ""
-  " echo "  f + key    - File operations:"
-  " echo "    ff       - Find file"
-  " echo "    fe       - File explorer"
-  " echo "    fv       - Vertical explorer"
-  " echo ""
-  " echo "  s + key    - Search operations:"
-  " echo "    sf       - Find file"
-  " echo "    sg       - Grep in files"
-  " echo "    sb       - List buffers"
-  " echo "    sl       - Search lines in buffer"
-  " echo "    sv       - Vim grep"
-  " echo ""
-  " echo "  u + key    - UI toggles:"
-  " echo "    us       - Toggle spelling"
-  " echo "    uw       - Toggle wrap"
-  " echo "    un       - Toggle line numbers"
-  " echo "    uh       - Clear highlights"
-  " echo "    ul       - Toggle listchars"
-  " echo ""
-  " echo "  b + key    - Buffer operations:"
-  " echo "    bb       - List buffers"
-  " echo "    bl/bh    - Next/previous buffer"
-  " echo "    bo       - Close other buffers"
-  " echo "    bd       - Delete buffer"
-  " echo ""
-  " echo "  c + key    - Change operations:"
-  " echo "    cd       - Change directory to current file"
-" endfunction
-"
-" Leader key mappings
-" nnoremap <silent> <leader> :call ShowLeaderHelp()<CR>
-"
-" One-key actions
-" nnoremap <leader>e :Lexplore<CR>
-"
-" Help
-" nnoremap <leader>? :call ShowLeaderHelp()<CR>
-"
-" Quit / Quickfix
-" nnoremap <leader>qq :qall!<CR>
-" nnoremap <leader>qo :copen<CR>
-" nnoremap <leader>qc :cclose<CR>
-" nnoremap <leader>qs :wq!<CR>
-"
-" Windows
-" nnoremap <leader>ww <C-W>w
-" nnoremap <leader>wd <C-W>c
-" nnoremap <leader>w- <C-W>s
-" nnoremap <leader>w<Bar> <C-W>v
-" nnoremap <leader>w2 <C-W>v
-" nnoremap <leader>wh <C-W>h
-" nnoremap <leader>wj <C-W>j
-" nnoremap <leader>wl <C-W>l
-" nnoremap <leader>wk <C-W>k
-" nnoremap <leader>wH <C-W>5<
-" nnoremap <leader>wJ :resize +5<CR>
-" nnoremap <leader>wL <C-W>5>
-" nnoremap <leader>wK :resize -5<CR>
-" nnoremap <leader>w= <C-W>=
-" nnoremap <leader>ws <C-W>s
-" nnoremap <leader>wv <C-W>v
-"
-" Tabs
-" nnoremap <leader>tn :tabnew<CR>
-" nnoremap <leader>to :tabonly<CR>
-" nnoremap <leader>tc :tabclose<CR>
-" nnoremap <leader>th :tabprevious<CR>
-" nnoremap <leader>tl :tabnext<CR>
-" nnoremap <leader>tz :tablast<CR>
-"
-" Git (shell-based commands)
-" nnoremap <leader>gs :!git status<CR>
-" nnoremap <leader>gd :!git diff<CR>
-" nnoremap <leader>gl :!git log --oneline -10<CR>
-" nnoremap <leader>gb :!git branch -a<CR>
-" nnoremap <leader>gp :!git push<CR>
-" nnoremap <leader>gc :!git commit<CR>
-" nnoremap <leader>ga :!git add .<CR>
-"
-" Files
-" nnoremap <leader>ff :find
-" nnoremap <leader>fe :Explore<CR>
-" nnoremap <leader>fv :Lexplore<CR>
-"
-" Search
-" nnoremap <leader>sf :find
-" nnoremap <leader>sg :vimgrep // **/*<Left><Left><Left><Left><Left><Left>
-" nnoremap <leader>sb :ls<CR>
-" nnoremap <leader>sl :g//<Left>
-" nnoremap <leader>sv :vimgrep
-"
-" User Interface Settings
-" nnoremap <leader>us :setlocal spell!<CR>
-" nnoremap <leader>uw :setlocal wrap!<CR>
-" nnoremap <leader>un :setlocal number!<CR>
-" nnoremap <leader>uh :noh<CR>
-" nnoremap <leader>ul :setlocal list!<CR>
-"
-" Buffers
-" nnoremap <leader>bb :ls<CR>
-" nnoremap <leader>bl :bnext<CR>
-" nnoremap <leader>bh :bprevious<CR>
-" nnoremap <leader>bo :%bd<Bar>e#<CR>
-" nnoremap <leader>bd :bd<CR>
-"
-" Change commands
-" nnoremap <leader>cd :cd %:p:h<CR>:pwd<CR>
+" Leader = open root menu
+nnoremap <silent> <leader><leader> :call <SID>LeaderRoot()<CR>
+nnoremap <silent> <leader> :call <SID>LeaderRoot()<CR>
 
 " File Explorer (replaces NERDTree)
 nnoremap <C-e> :Lexplore<CR>
