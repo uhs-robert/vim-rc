@@ -1,4 +1,4 @@
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 " Maintainer:
 "       Robert Hill - @uhs-robert
 "
@@ -682,6 +682,20 @@ function! s:TypeCmd(stub) abort
   call feedkeys(':' . "\<C-u>" . a:stub, 'n')
 endfunction
 
+" Toggle any local option by name
+function! s:Toggle(opt) abort
+  execute 'setlocal ' . a:opt . '!'
+endfunction
+
+" Resize helpers using a single knob
+let g:LeaderResizeStep = 5
+function! s:Resize(delta) abort
+  execute 'resize ' . (a:delta)
+endfunction
+function! s:VResize(delta) abort
+  execute 'vertical resize ' . (a:delta)
+endfunction
+
 " Build a dict menu from a compact spec: [ [key, entry], ... ]
 function! s:BuildMenu(spec) abort
   let m = {}
@@ -806,86 +820,117 @@ endfunction
 
 " --- Sub-menus ---------------------------------------------------------------
 function! s:WinMenu() abort
+  let step = get(g:, 'LeaderResizeStep', 10)
   let spec = [
-    \ ['w', s:Cmd('Other window',    'wincmd w')],
-    \ ['d', s:Cmd('Delete window',   'wincmd c')],
-    \ ['-', s:Cmd('Split horizontal','wincmd s')],
-    \ ['|', s:Cmd('Split vertical',  'wincmd v')],
-    \ ['h', s:Cmd('Go left',         'wincmd h')],
-    \ ['j', s:Cmd('Go down',         'wincmd j')],
-    \ ['k', s:Cmd('Go up',           'wincmd k')],
-    \ ['l', s:Cmd('Go right',        'wincmd l')],
-    \ ['H', s:Cmd('Resize wider',    'execute "vertical resize -5"')],
-    \ ['L', s:Cmd('Resize narrower', 'execute "vertical resize +5"')],
-    \ ['K', s:Cmd('Resize shorter',  'execute "resize -5"')],
-    \ ['J', s:Cmd('Resize taller',   'execute "resize +5"')],
-    \ ['=', s:Cmd('Balance',         'wincmd =')],
+    \ ['w', s:Cmd('Other window',      'wincmd w')],
+    \ ['d', s:Cmd('Delete window',     'wincmd c')],
+    \ ['-', s:Cmd('Split horizontal',  'wincmd s')],
+    \ ['|', s:Cmd('Split vertical',    'wincmd v')],
+    \ ['h', s:Cmd('Go left',           'wincmd h')],
+    \ ['j', s:Cmd('Go down',           'wincmd j')],
+    \ ['k', s:Cmd('Go up',             'wincmd k')],
+    \ ['l', s:Cmd('Go right',          'wincmd l')],
+    \ ['H', s:Cmd('Wider  ←',          'call <SID>VResize(-'.step.')')],
+    \ ['L', s:Cmd('Narrower →',        'call <SID>VResize('.step.')')],
+    \ ['K', s:Cmd('Shorter ↑',         'call <SID>Resize(-'.step.')')],
+    \ ['J', s:Cmd('Taller  ↓',         'call <SID>Resize('.step.')')],
+    \ ['=', s:Cmd('Balance',           'wincmd =')],
+    \ ['x', s:Cmd('Exchange with next','wincmd r')],
+    \ ['m', s:Cmd('Move to new tab',   'tab split | wincmd T')],
     \ ]
   call s:Which('Windows', s:BuildMenu(spec))
 endfunction
 
 function! s:TabMenu() abort
   let spec = [
-    \ ['n', s:Cmd('New tab',         'tabnew')],
-    \ ['c', s:Cmd('Close tab',       'tabclose')],
-    \ ['o', s:Cmd('Close other tabs','tabonly')],
-    \ ['h', s:Cmd('Prev tab',        'tabprevious')],
-    \ ['l', s:Cmd('Next tab',        'tabnext')],
-    \ ['z', s:Cmd('Last tab',        'tablast')],
+    \ ['n', s:Cmd('New tab',          'tabnew')],
+    \ ['c', s:Cmd('Close tab',        'tabclose')],
+    \ ['o', s:Cmd('Close other tabs', 'tabonly')],
+    \ ['h', s:Cmd('Prev tab',         'tabprevious')],
+    \ ['l', s:Cmd('Next tab',         'tabnext')],
+    \ ['z', s:Cmd('Last tab',         'tablast')],
+    \ ['<', s:Cmd('Move left',        'tabmove -1')],
+    \ ['>', s:Cmd('Move right',       'tabmove +1')],
+    \ ['1', s:Cmd('Go to tab 1',      'tabfirst')],
+    \ ['2', s:Cmd('Go to tab 2',      'execute "tabnext 2"')],
+    \ ['3', s:Cmd('Go to tab 3',      'execute "tabnext 3"')],
+    \ ['4', s:Cmd('Go to tab 4',      'execute "tabnext 4"')],
+    \ ['5', s:Cmd('Go to tab 5',      'execute "tabnext 5"')],
+    \ ['6', s:Cmd('Go to tab 6',      'execute "tabnext 6"')],
+    \ ['7', s:Cmd('Go to tab 7',      'execute "tabnext 7"')],
+    \ ['8', s:Cmd('Go to tab 8',      'execute "tabnext 8"')],
+    \ ['9', s:Cmd('Go to tab 9',      'execute "tabnext 9"')],
     \ ]
   call s:Which('Tabs', s:BuildMenu(spec))
 endfunction
 
 function! s:BufMenu() abort
   let spec = [
-    \ ['b', s:Cmd('List buffers',    'ls')],
-    \ ['l', s:Cmd('Next buffer',     'bnext')],
-    \ ['h', s:Cmd('Prev buffer',     'bprevious')],
-    \ ['d', s:Cmd('Delete buffer',   'bd')],
-    \ ['o', s:Cmd('Only this buffer','execute "%bd | e# | bd #"')],
+    \ ['b', s:Cmd('List buffers',       'ls')],
+    \ ['l', s:Cmd('Next buffer',        'bnext')],
+    \ ['h', s:Cmd('Prev buffer',        'bprevious')],
+    \ ['a', s:Cmd('Alternate buffer',   'buffer #')],
+    \ ['d', s:Cmd('Delete buffer',      'bd')],
+    \ ['D', s:Cmd('Wipeout buffer',     'bwipeout')],
+    \ ['o', s:Cmd('Only this buffer',   'execute "%bd | e# | bd #"')],
+    \ ['p', s:Cmd('Pick by number :b ', 'call <SID>TypeCmd("b ")')],
     \ ]
   call s:Which('Buffers', s:BuildMenu(spec))
 endfunction
 
 function! s:FileMenu() abort
   let spec = [
-    \ ['e', s:Cmd('Explore (netrw)', 'Explore')],
-    \ ['v', s:Cmd('Explore vertical','Lexplore')],
-    \ ['f', s:Cmd('Find file (:find)','call <SID>TypeCmd("find ")')],
+    \ ['e', s:Cmd('Explore (netrw)',     'Explore')],
+    \ ['v', s:Cmd('Explore vertical',    'Lexplore')],
+    \ ['f', s:Cmd('Find file (:find)',   'call <SID>TypeCmd("find ")')],
+    \ ['w', s:Cmd('Write',               'write')],
+    \ ['W', s:Cmd('Save As (:w )',       'call <SID>TypeCmd("w ")')],
+    \ ['r', s:Cmd('Edit alternate file', 'e #')],
     \ ]
   call s:Which('Files', s:BuildMenu(spec))
 endfunction
 
 function! s:SearchMenu() abort
   let spec = [
-  \ ['b', s:Cmd('Grep in buffer',    'call <SID>TypeCmd("vimgrep /%")')],
-  \ ['g', s:Cmd('Grep in project',   'call <SID>TypeCmd("vimgrep ")')],
-  \ ['l', s:Cmd('Print lines (g//)', 'call <SID>TypeCmd("g/")')],
-  \ ['v', s:Cmd(':vimgrep (manual)', 'call <SID>TypeCmd("vimgrep ")')],
-  \ ]
+    \ ['/', s:Cmd('Forward search',       'call <SID>TypeCmd("/")')],
+    \ ['?', s:Cmd('Backward search',      'call <SID>TypeCmd("?")')],
+    \ ['*', s:Cmd('Search word under *',  'normal *')],
+    \ ['#', s:Cmd('Search word under #',  'normal #')],
+    \ ['b', s:Cmd('vimgrep current %',    'call <SID>TypeCmd("vimgrep /%")')],
+    \ ['g', s:Cmd('vimgrep project',      'call <SID>TypeCmd("vimgrep ")')],
+    \ ['l', s:Cmd('Global :g// (print)',  'call <SID>TypeCmd("g/")')],
+    \ ]
   call s:Which('Search', s:BuildMenu(spec))
 endfunction
 
 function! s:GitMenu() abort
   let spec = [
-    \ ['s', s:Cmd('git status',          '!git status')],
-    \ ['d', s:Cmd('git diff',            '!git diff')],
-    \ ['l', s:Cmd('git log --oneline',   '!git log --oneline -10')],
-    \ ['b', s:Cmd('git branch -a',       '!git branch -a')],
-    \ ['a', s:Cmd('git add .',           '!git add .')],
-    \ ['c', s:Cmd('git commit',          '!git commit')],
-    \ ['p', s:Cmd('git push',            '!git push')],
+    \ ['s', s:Cmd('status',          '!git status')],
+    \ ['d', s:Cmd('diff',            '!git diff')],
+    \ ['l', s:Cmd('log --oneline',   '!git log --oneline -10')],
+    \ ['b', s:Cmd('branch -a',       '!git branch -a')],
+    \ ['a', s:Cmd('add .',           '!git add .')],
+    \ ['A', s:Cmd('add -p',          '!git add -p')],
+    \ ['c', s:Cmd('commit',          '!git commit')],
+    \ ['p', s:Cmd('push',            '!git push')],
+    \ ['P', s:Cmd('pull',            '!git pull --rebase')],
+    \ ['o', s:Cmd('checkout/switch', 'call <SID>TypeCmd("!git switch ")')],
+    \ ['t', s:Cmd('stash',           'call <SID>TypeCmd("!git stash ")')],
     \ ]
   call s:Which('Git', s:BuildMenu(spec))
 endfunction
 
 function! s:UIMenu() abort
   let spec = [
-    \ ['s', s:Cmd('Toggle spell',    'setlocal spell!')],
-    \ ['w', s:Cmd('Toggle wrap',     'setlocal wrap!')],
-    \ ['n', s:Cmd('Toggle number',   'setlocal number!')],
-    \ ['h', s:Cmd('Clear highlights','noh')],
-    \ ['l', s:Cmd('Toggle listchars','setlocal list!')],
+    \ ['s', s:Cmd('Toggle spell',        'call <SID>Toggle("spell")')],
+    \ ['w', s:Cmd('Toggle wrap',         'call <SID>Toggle("wrap")')],
+    \ ['n', s:Cmd('Toggle number',       'call <SID>Toggle("number")')],
+    \ ['r', s:Cmd('Toggle relativenumber','call <SID>Toggle("relativenumber")')],
+    \ ['c', s:Cmd('Toggle cursorline',   'call <SID>Toggle("cursorline")')],
+    \ ['g', s:Cmd('Toggle signcolumn',   'setlocal signcolumn='.
+    \                                     (&l:signcolumn ==# 'yes' ? 'no' : 'yes'))],
+    \ ['l', s:Cmd('Toggle listchars',    'call <SID>Toggle("list")')],
+    \ ['h', s:Cmd('Clear highlights',    'noh')],
     \ ]
   call s:Which('UI toggles', s:BuildMenu(spec))
 endfunction
@@ -894,11 +939,22 @@ function! s:QuitMenu() abort
   let spec = [
     \ ['q', s:Cmd('Quit all!',        'qall!')],
     \ ['s', s:Cmd('Save & quit',      'wq!')],
-    \ ['o', s:Cmd('Open quickfix',    'copen')],
-    \ ['c', s:Cmd('Close quickfix',   'cclose')],
     \ ]
   call s:Which('Quit / Quickfix', s:BuildMenu(spec))
 endfunction
+
+function! s:QuickfixMenu() abort
+  let spec = [
+    \ ['o', s:Cmd('Open quickfix',     'copen')],
+    \ ['c', s:Cmd('Close quickfix',    'cclose')],
+    \ ['n', s:Cmd('Next quickfix',     'cnext')],
+    \ ['p', s:Cmd('Prev quickfix',     'cprev')],
+    \ ['l', s:Cmd('Open loclist',      'lopen')],
+    \ ['x', s:Cmd('Close loclist',     'lclose')],
+    \ ]
+  call s:Which('Quickfix/Loclist', s:BuildMenu(spec))
+endfunction
+
 
 " --- Root menu and top-level leader bindings -------------------------------
 function! s:LeaderRoot() abort
@@ -906,15 +962,16 @@ function! s:LeaderRoot() abort
   let s:stack  = ['LeaderRoot']
 
   let spec = [
-    \ ['e', s:Cmd('Explorer', 'Lexplore')],
-    \ ['w', s:Go('+Windows', 'WinMenu')],
     \ ['b', s:Go('+Buffers', 'BufMenu')],
+    \ ['e', s:Cmd('Explorer', 'Lexplore')],
     \ ['f', s:Go('+Files',   'FileMenu')],
-    \ ['s', s:Go('+Search',  'SearchMenu')],
     \ ['g', s:Go('+Git',     'GitMenu')],
+    \ ['q', s:Go('+Quit',    'QuitMenu')],
+    \ ['s', s:Go('+Search',  'SearchMenu')],
     \ ['t', s:Go('+Tabs',    'TabMenu')],
     \ ['u', s:Go('+UI',      'UIMenu')],
-    \ ['q', s:Go('+Quit',    'QuitMenu')],
+    \ ['w', s:Go('+Windows', 'WinMenu')],
+    \ ['x', s:Go('+Quickfix', 'QuickfixMenu')],
     \ ]
 
   call s:Which('Leader', s:BuildMenu(spec))
