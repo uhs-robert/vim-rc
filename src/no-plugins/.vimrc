@@ -414,7 +414,7 @@ if !exists('g:colors_name')
 
     " PopUp
     hi Pmenu            guibg=#252526
-    hi PmenuSel         guifg=#252526 guibg=#6DCEEB
+    hi PmenuSel         guibg=#000000 guifg=#6DCEEB
   endfunction
   silent! colorscheme desert
 endif
