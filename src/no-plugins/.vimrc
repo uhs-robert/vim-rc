@@ -1,34 +1,77 @@
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Maintainer:
-"       Robert Hill - @uhs-robert
+" [Maintainer]
+"   Robert Hill - @uhs-robert <https://github/.com/uhs-robert/vim>
+"   Last Change: 2025 Aug 15
 "
-" Sections:
-"    ## General
-"    ## VIM User Interface
-"    ## GUI and Fonts
-"    ## Files and backups
-"    ## Text, tab and indent related
-"    ## Moving around, tabs and buffers
-"    ## Custom Key Mappings
-"    ## Color Scheme / Theme
-"    ## Plugin Replacements
-"    ### Status Line
-"    ### Visual Indent Guides
-"    ### Netrw (Explorer)
-"    ### Toggle Comments
-"    ### Fuzzy Finder (FZF)
-"    ### Leader Key / Which Key Mappings
+" [Instructions]
+"   To use this, copy it to
+"     > Unix: ~/.vimrc
+"     > Amiga: s:.vimrc
+"     > MS-Windows: $VIM\_vimrc
+"     > Haiku: ~/config/settings/vim/vimrc
+"     > OpenVMS: sys$login:.vimrc
+"
+" [Sections]
+"   ## Cross Compatability
+"   ## General
+"   ## VIM User Interface
+"   ## GUI
+"   ## Files and backups
+"   ## Text, tab and indent related
+"   ## Moving around, tabs and buffers
+"   ## Custom Key Mappings
+"   ## Color Scheme / Theme
+"   ## Plugin Replacements
+"   ### Status Line
+"   ### Visual Indent Guides
+"   ### Netrw (Explorer)
+"   ### Toggle Comments
+"   ### Fuzzy Finder (FZF)
+"   ### Which Key Mappings
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-let mapleader = " "
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ## Cross Compatability
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" When started as "evim", evim.vim will already have done these settings, bail out.
+if v:progname =~? "evim"
+  finish
+endif
+
+" Get the defaults that most users want if using regular vim.
+if !has('nvim')
+    source $VIMRUNTIME/defaults.vim
+endif
+
+" Put these in an autocmd group, so that we can delete them easily.
+augroup vimrcEx
+  au!
+  " For all text files set 'textwidth' to 78 characters.
+  autocmd FileType text setlocal textwidth=78
+augroup END
+
+" Add optional packages.
+"
+" The matchit plugin makes the % command work better, but it is not backwards compatible.
+" The ! means the package won't be loaded right away but when plugins are
+" loaded during initialization.
+if has('syntax') && has('eval')
+  packadd! matchit
+endif
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## General
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Leader Key
+let mapleader = " "
+
 " Sets how many lines of history VIM has to remember
-set history=500
+set history=1000
 
 " Enable filetype plugins
+filetype on
 filetype plugin on
 filetype indent on
 
@@ -60,8 +103,8 @@ set number
 " Show line numbers on current line, releative numbers on others
 set relativenumber
 
-" Set 7 lines to the cursor - when moving vertically using j/k
-set scrolloff=7
+" Set n lines to the cursor - when moving vertically using j/k
+set scrolloff=10
 
 " Avoid garbled characters in Chinese language windows OS
 let $LANG='en'
@@ -105,9 +148,6 @@ set ignorecase
 " Automatically switch search to case-sensitive when search query contains an uppercase letter.
 set smartcase
 
-" Highlight search results
-set hlsearch
-
 " Makes search act like search in modern browsers
 set incsearch
 
@@ -148,11 +188,11 @@ if executable('rg')
   set grepformat=%f:%l:%c:%m
 endif
 
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" ## GUI and Fonts
+" ## GUI
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Enable syntax highlighting
+syntax on
 syntax enable
 
 " Set regular expression engine automatically
@@ -162,8 +202,13 @@ set regexpengine=0
 if has("gui_running")
   set guioptions-=T
   set guioptions-=e
-  " set t_Co=256
+  set t_Co=256
   set guitablabel=%M\ %t
+endif
+
+" Switch on highlighting the last used search pattern.
+if &t_Co > 2 || has("gui_running")
+  set hlsearch
 endif
 
 " Set utf8 as standard encoding and en_US as the standard language
@@ -172,6 +217,9 @@ set encoding=utf8
 " Use Unix as the standard file type
 set ffs=unix,dos,mac
 
+" Set cursor line highlight as number
+set cursorline
+set cursorlineopt=number
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## Files, backups and undo
@@ -180,7 +228,6 @@ set ffs=unix,dos,mac
 set nobackup
 set nowb
 set noswapfile
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## Text, tab and indent related
@@ -292,64 +339,82 @@ if exists('+termguicolors')
   set termguicolors
 endif
 
-" Main theme requires ~/.vim/colors/codeblack.vim
-set background=dark
-silent! colorscheme codeblack
-
 " Backup theme
 if !exists('g:colors_name')
   augroup OverrideDesert
     autocmd!
-    autocmd ColorScheme desert ++nested call s:DesertOverrides()
+    autocmd ColorScheme desert ++nested call s:DesertNight()
   augroup END
 
-  function! s:DesertOverrides() abort
-    hi Normal     guibg=#000000 guifg=#e0e0e0 ctermbg=NONE ctermfg=250
-    hi NonText    guibg=#000000 ctermbg=NONE
-    hi LineNr     guibg=#000000 ctermbg=NONE
-    hi SignColumn guibg=#000000 ctermbg=NONE
-    hi CursorLine guibg=#0a0a0a ctermbg=235
-    hi cdLineNumber guifg=#5A5A5A
+  function! s:DesertNight() abort
+    " General
+    hi Normal           guibg=#000000 guifg=#e0e0e0 ctermbg=NONE ctermfg=250
+    hi LineNr           guifg=#5A544A ctermbg=NONE
+    hi CursorLineNr     guifg=#e0e0e0 ctermfg=231 guibg=#000000
+    hi CursorLineFold   guibg=#000000 ctermbg=16
+    hi SignColumn       guibg=#000000 ctermbg=NONE
+    hi FoldColumn       guibg=#000000 ctermbg=NONE
+    hi Search           guifg=#F0E68C guibg=#264F78
+    hi StatusLine       guifg=#5A544A guibg=#252526
+    hi StatusLineNC     guifg=#5A544A guibg=#252526
+    hi StatusLineTerm   guifg=NONE guibg=NONE gui=NONE term=NONE
+    hi StatusLineTermNC guifg=#5A544A guibg=#252526
 
-    highlight Comment    guifg=#6A9955 gui=italic
-    hi Statement     guifg=#569CD6
-    hi Conditional   guifg=#569CD6
-    hi Repeat        guifg=#569CD6
-    hi Keyword       guifg=#646695
-    hi Label         guifg=#646695
-    hi Exception     guifg=#F44747
+    hi Comment          guifg=#6DCEEB gui=italic
+
+    hi Constant         guifg=#FFA0A0 gui=NONE term=NONE cterm=NONE 
+    " hi String         guifg=#CE9178
+    " hi Character      guifg=#CE9178
+    " hi Number         guifg=#DCDCAA
+    " hi Float          guifg=#DCDCAA
+    " hi Boolean        guifg=#D16969
+
+    " hi Identifier     guifg=#9CDCFE
+    " hi Function       guifg=#4FC1FF
+    
+    hi Statement        guifg=#F0E88C gui=NONE term=NONE cterm=NONE
+    " hi Conditional    guifg=#569CD6
+    " hi Repeat         guifg=#569CD6
+    " hi Label          guifg=#646695
+    " hi Operator       guifg=#646695
+    " hi Keyword        guifg=#646695
+    " hi Exception      guifg=#F44747
+
+    hi PreProc          guifg=#F44747
+    " hi Include        guifg=#F44747
+    " hi Define         guifg=#F44747
+    " hi Macro          guifg=#F44747
+    " hi PreCondit      guifg=#F44747
+    
+    " Types / storage
+    hi Type             guifg=#4EC9B0
+    " hi StorageClass   guifg=#4EC9B0
+    " hi Structure      guifg=#4EC9B0
+    " hi Typedef        guifg=#4EC9B0
+
+    hi Special          guifg=#FFDE9B
+    " hi SpecialChar    guifg=#4EC9B0
+    " hi Tag            guifg=#4EC9B0
+    " hi Delimiter      guifg=#4EC9B0
+    " hi SpecialComment guifg=#4EC9B0
+    " hi Debug          guifg=#4EC9B0
+
+    " hi Error            guifg=
+    hi Todo             guifg=#000000 guibg=#cd853f
 
     " Tabline
-    hi TabLine guifg=#FFFFFF guibg=#3E3C3B
-    hi TabLineFill guifg=#FFFFFF guibg=#252526
-    hi TabLineSel guifg=#FFFFFF guibg=#084671
+    hi TabLine          guifg=#FFFFFF guibg=#3E3C3B
+    hi TabLineFill      guifg=#FFFFFF guibg=#252526
+    hi TabLineSel       guifg=#000000 guibg=#6DCEEB
 
     " Visual selection
-    hi Visual guibg=#264F78
-    hi! link VisualNOS Visual
+    hi Visual           guibg=#264F78 guifg=NONE
     hi! link WildMenu Visual
+    hi VisualNOS        guibg=#264F78 guifg=#f0e68c
 
-     " Variables / functions
-    hi Identifier guifg=#9CDCFE
-    hi Function   guifg=#4FC1FF
-    "
-    " Types / storage
-    hi Type          guifg=#4EC9B0
-    hi StorageClass  guifg=#4EC9B0
-    hi Structure     guifg=#4EC9B0
-    hi Typedef       guifg=#4EC9B0
-
-    " Strings / constants
-    hi String     guifg=#CE9178
-    hi Character  guifg=#CE9178
-    hi Constant   guifg=#D7BA7D
-    hi Number     guifg=#DCDCAA
-    hi Boolean    guifg=#D16969
-    hi Float      guifg=#DCDCAA
-
-    highlight Type       guifg=#afff87
-    hi Operator guifg=#DCDCAA
-
+    " PopUp
+    hi Pmenu            guibg=#252526
+    hi PmenuSel         guifg=#252526 guibg=#6DCEEB
   endfunction
   silent! colorscheme desert
 endif
@@ -357,11 +422,9 @@ endif
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ## Plugin Replacements
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ### Status Line
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
 " Git branch info
 function! GitBranch()
   return system("git rev-parse --abbrev-ref HEAD 2>/dev/null | tr -d '\n'")
@@ -401,87 +464,77 @@ let g:currentmode={
 set laststatus=2
 set noshowmode
 set statusline=
-set statusline+=%0*\ %{toupper(g:currentmode[mode()])}\  " The current mode
-set statusline+=%4{StatuslineGit()}                      " Git branch
-set statusline+=%1*\ %<%F%m%r%h%w\                       " File path, modified, readonly, helpfile, preview
-set statusline+=%3*│                                     " Separator
-set statusline+=%2*\ %Y\                                 " FileType
-set statusline+=%3*│                                     " Separator
-set statusline+=%2*\ %{''.(&fenc!=''?&fenc:&enc).''}     " Encoding
+set statusline+=%1*\ %{toupper(g:currentmode[mode()])}\  " The current mode
+set statusline+=%3{StatuslineGit()}                      " Git branch
+set statusline+=%2*\ %<%F%m%r%h%w\                       " File path, modified, readonly, helpfile, preview
+set statusline+=%4*\                                     " Separator
+set statusline+=%3*\ %Y\                                 " FileType
+set statusline+=%4*\                                     " Separator
+set statusline+=%3*\ %{''.(&fenc!=''?&fenc:&enc).''}     " Encoding
 set statusline+=\ (%{&ff})                               " FileFormat (dos/unix..)
 set statusline+=%=                                       " Right Side
-set statusline+=%3*│                                     " Separator
-set statusline+=%2*\ col:\ %02v\                         " Column number
-set statusline+=%3*│                                     " Separator
-set statusline+=%4*\ %3p%%\ %02l/%L\                     " Percentage of Doc, Line number / total lines
-set statusline+=%0*\ %n\                                 " Buffer number
+set statusline+=%5*\%k                                   " Display keymaps from lMap
+set statusline+=%4*\                                     " Separator
+set statusline+=%3*\ col:\ %02v\                         " Column number
+set statusline+=%4*\                                     " Separator
+set statusline+=%5*\ %3p%%\ %02l/%L\                     " Percentage of Doc, Line number / total lines
+set statusline+=%1*\ %n\                                 " Buffer number
 
 " Static highlight group colors
-hi User1 ctermbg=15 ctermfg=0 guibg=#303030 guifg=#FFFFFF
-hi User2 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#FFFFFF
-hi User3 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#252426
-hi User5 ctermfg=236 ctermbg=236 guibg=#252426 guifg=#F581F3
+hi User2 guibg=#303030 guifg=#FFFFFF ctermbg=236 ctermfg=15
+hi User3 guibg=#252526 guifg=#FFFFFF ctermbg=235 ctermfg=15
+hi User4 guibg=#252526 guifg=#252526 ctermbg=235 ctermfg=235
+hi User5 guibg=#252526 guifg=#F581F3 ctermbg=235 ctermfg=213
+
 
 " Mode-based statusline color changes
 augroup StatusLineModeColors
   autocmd!
-    let s:last_bucket = ''
+    let s:last_mode = ''
 
     " Get mode
     function! s:BucketForMode(m) abort
       let m = a:m
-      " Insert modes: i, ic, ix
       if m[0] ==# 'i'
         return 'insert'
-        " Replace modes: R, Rc, Rv, Rx (NB: case-sensitive)
       elseif m[0] ==# 'R'
         return 'replace'
-        " Visual & Select: v, V, ^V, s, S, ^S
       elseif m =~# '^\%(v\|V\|\x16\|s\|S\|\x13\)'
         return 'visual'
-        " Terminal
       elseif m ==# 't'
         return 'terminal'
-        " Command-line & prompts: c, cv, ce, r, rm, r?, !
       elseif m[0] =~# '^\%(c\|r\|!\)'
         return 'cmdline'
-        " Normal and operator-pending fall here
       else
         return 'normal'
       endif
     endfunction
 
     " Apply mode colors
-    function! s:ApplyModeColor(bucket) abort
-      if s:last_bucket ==# a:bucket | return | endif
+    function! s:ApplyModeColor(mode) abort
+      if s:last_mode ==# a:mode | return | endif
 
-      if a:bucket ==# 'insert'
-        hi StatusLine guibg=#4CAF50 guifg=#FFFFFF ctermbg=15 ctermfg=2
-        hi User0      guibg=#3E3C3B guifg=#4CAF50 ctermbg=15 ctermfg=2
-        hi User4      guibg=#3E3C3B guifg=#4CAF50 ctermbg=15 ctermfg=2
-      elseif a:bucket ==# 'visual'
-        hi StatusLine guibg=#FF9800 guifg=#000000 ctermbg=0  ctermfg=3
-        hi User0      guibg=#3E3C3B guifg=#FF9800 ctermbg=0  ctermfg=3
-        hi User4      guibg=#3E3C3B guifg=#FF9800 ctermbg=0  ctermfg=3
-      elseif a:bucket ==# 'replace'
-        hi StatusLine guibg=#F44336 guifg=#FFFFFF ctermbg=15 ctermfg=1
-        hi User0      guibg=#3E3C3B guifg=#F44336 ctermbg=15 ctermfg=1
-        hi User4      guibg=#3E3C3B guifg=#F44336 ctermbg=15 ctermfg=1
-      elseif a:bucket ==# 'cmdline'
-        hi StatusLine guibg=#F686FC guifg=#000000 ctermbg=15 ctermfg=5
-        hi User0      guibg=#3E3C3B guifg=#F686FC ctermbg=15 ctermfg=5
-        hi User4      guibg=#3E3C3B guifg=#F686FC ctermbg=15 ctermfg=5
-      elseif a:bucket ==# 'terminal'
-        hi StatusLine guibg=#FF8800 guifg=#FFFFFF ctermbg=15 ctermfg=208
-        hi User0      guibg=#3E3C3B guifg=#FF8800 ctermbg=15 ctermfg=208
-        hi User4      guibg=#3E3C3B guifg=#FF8800 ctermbg=15 ctermfg=208
+      if a:mode ==# 'insert'
+        hi User1 guibg=#9ACD32 guifg=#000000 ctermbg=71  ctermfg=15
+        hi User5      guibg=#3E3C3B guifg=#9ACD32 ctermbg=237 ctermfg=71
+      elseif a:mode ==# 'visual'
+        hi User1 guibg=#CD853F guifg=#000000 ctermbg=208 ctermfg=0
+        hi User5      guibg=#3E3C3B guifg=#CD853F ctermbg=237 ctermfg=208
+      elseif a:mode ==# 'replace'
+        hi User1 guibg=#FF0000 guifg=#FFFFFF ctermbg=203 ctermfg=15
+        hi User5      guibg=#3E3C3B guifg=#FF0000 ctermbg=237 ctermfg=203
+      elseif a:mode ==# 'cmdline'
+        hi User1 guibg=#F0E68C guifg=#000000 ctermbg=213 ctermfg=0
+        hi User5      guibg=#3E3C3B guifg=#F0E68C ctermbg=237 ctermfg=213
+      elseif a:mode ==# 'terminal'
+        hi User1 guibg=#FFA0A0 guifg=#000000 ctermbg=217 ctermfg=16
+        hi User5      guibg=#3E3C3B guifg=#FFA0A0 ctermbg=237 ctermfg=217
       else " normal
-        hi StatusLine guibg=#2196F3 guifg=#FFFFFF ctermbg=15 ctermfg=4
-        hi User0      guibg=#3E3C3B guifg=#2196F3 ctermbg=15 ctermfg=4
-        hi User4      guibg=#3E3C3B guifg=#2196F3 ctermbg=15 ctermfg=4
+        hi User1 guibg=#6DCEEB guifg=#000000 ctermbg=33  ctermfg=15
+        hi User5      guibg=#3E3C3B guifg=#6DCEEB ctermbg=237 ctermfg=33
       endif
 
-      let s:last_bucket = a:bucket
+      let s:last_mode = a:mode
     endfunction
 
     " Prep before entering cmdline so colors flip immediately
@@ -539,7 +592,7 @@ highlight! link NonText     IndentGuides
 augroup IndentGuideColors
   autocmd!
   autocmd ColorScheme * highlight IndentGuides guifg=#555555 ctermfg=240
-  autocmd ColorScheme * highlight IndentActive guifg=#ffcc00 ctermfg=220
+  autocmd ColorScheme * highlight IndentActive guifg=#08436C ctermfg=220
   autocmd ColorScheme * highlight! link SpecialKey  IndentGuides
   autocmd ColorScheme * highlight! link Whitespace  IndentGuides
   autocmd ColorScheme * highlight! link NonText     IndentGuides
@@ -641,6 +694,7 @@ set wildignore+=*/node_modules/*,*/dist/*,*/.git/*
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ### Toggle Comments
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"TODO:Fix issue where sometimes it stalls out and doesn't toggle
 " Manual comment toggle (replaces vim-commentary)
 function! ToggleComment()
   let comment_char = {
@@ -678,6 +732,7 @@ vnoremap gc :call ToggleComment()<CR>
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ### Fuzzy Finder (FZF)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"TODO: Finish and test this section to add fzf to which key
 " ===================== Modular FZF (reuses your launchers) ===================
 let g:FzfPickerStyle   = get(g:, 'FzfPickerStyle', 'bottom')   " popup|bottom|tab
 let g:FzfSplitHeight   = get(g:, 'FzfSplitHeight', 12)
@@ -796,6 +851,7 @@ function! s:_build_files_spec(action_fmt) abort
   else
     let preview = "sh -c 'sed -n 1,300p -- \"$0\" 2>/dev/null || head -n 300 -- \"$0\"' {}"
   endif
+
   let pv = printf('--preview-window=%s,%s%s',
         \ g:FzfPreviewSide, g:FzfPreviewSize, g:FzfPreviewBorder ? ',border' : '')
   let core = printf('%s | fzf --preview %s %s > %s',
@@ -885,7 +941,7 @@ endfunction
 "   ['F', s:Cmd('Fuzzy switch',   'call <SID>FzfBuffers()')],
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" ### Leader Key / Which Key Mappings
+" ### Which Key Mappings
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " --- Which Key Settings (user config) --------------------------------------
 let g:LeaderMenuPos    = 'botright'     " one of: center, botright, topright, botleft, topleft, cursor
